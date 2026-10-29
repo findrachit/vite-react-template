@@ -13,8 +13,10 @@
 	},
 	"dependencies": {
 		"hono": "4.11.1",
+		"lucide-react": "^1.64.0",
 		"react": "19.2.1",
-		"react-dom": "19.2.1"
+		"react-dom": "19.2.1",
+		"satellite.js": "^5.0.0"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.52.1",
