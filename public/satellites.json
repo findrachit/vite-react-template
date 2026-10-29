@@ -1,0 +1,42 @@
+[
+  {
+    "id": "iss",
+    "name": "ISS (ZARYA)",
+    "displayName": "International Space Station",
+    "callsign": "ISS / RS0ISS",
+    "noradId": 25544,
+    "designator": "1998-067A",
+    "category": "Space Station",
+    "launchDate": "1998-11-20",
+    "orbitType": "Low Earth Orbit (LEO)",
+    "altitudeKm": 420,
+    "inclinationDeg": 51.64,
+    "periodMin": 92.9,
+    "frequency": "145.800 MHz (FM Voice) / 145.825 MHz (APRS) / 437.525 MHz",
+    "description": "The largest modular space station in low Earth orbit. A multinational collaborative project between NASA, Roscosmos, JAXA, ESA, and CSA, continuously inhabited by astronauts and cosmonauts since November 2000.",
+    "color": "#38bdf8",
+    "icon": "space-station",
+    "tleLine1": "1 25544U 98067A   26301.59601386  .00005724  00000+0  11161-3 0  9990",
+    "tleLine2": "2 25544  51.6336 359.9178 0006994 320.4528  39.5949 15.49090321592436"
+  },
+  {
+    "id": "sakhacube",
+    "name": "SAKHACUBE-CHOLBON (RS18S)",
+    "displayName": "SakhaCube-Cholbon",
+    "callsign": "RS18S",
+    "noradId": 67290,
+    "designator": "2025-313AU",
+    "category": "CubeSat / Amateur Radio",
+    "launchDate": "2025-12-28",
+    "orbitType": "Sun-Synchronous Orbit (SSO)",
+    "altitudeKm": 508,
+    "inclinationDeg": 97.38,
+    "periodMin": 94.3,
+    "frequency": "437.350 MHz (GMSK Telemetry & SSTV Images)",
+    "description": "Educational 1U CubeSat developed by students and young researchers from the Republic of Sakha (Yakutia). Features an amateur radio transmitter sending Slow-Scan TV (SSTV) images and regional environmental sensor telemetry.",
+    "color": "#a855f7",
+    "icon": "satellite",
+    "tleLine1": "1 67290U 25313AU  26301.67017416  .00005856  00000+0  22344-3 0  9993",
+    "tleLine2": "2 67290  97.3812  15.1411 0007502 238.2933 121.7575 15.27023639 46335"
+  }
+]
