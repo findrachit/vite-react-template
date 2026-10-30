@@ -857,6 +857,63 @@ body {
 	border-color: rgba(255, 255, 255, 0.2);
 }
 
+.filters-row-secondary {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.transmission-tabs {
+	flex-wrap: wrap;
+}
+
+.filter-count-badge {
+	font-size: 0.65rem;
+	opacity: 0.75;
+	font-weight: 500;
+}
+
+.transmission-active-indicator {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 0.75rem;
+}
+
+.active-mode-tag {
+	color: var(--accent-cyan);
+	background: rgba(56, 189, 248, 0.1);
+	border: 1px solid rgba(56, 189, 248, 0.25);
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-weight: 500;
+}
+
+.active-mode-tag strong {
+	color: #fff;
+}
+
+.btn-clear-mode {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	color: var(--text-muted);
+	font-size: 0.7rem;
+	font-weight: 600;
+	padding: 4px 9px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.btn-clear-mode:hover {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.25);
+}
+
 .pass-count-summary {
 	font-size: 0.8rem;
 	color: var(--text-muted);
@@ -1119,6 +1176,366 @@ body {
 .radar-view-btn:hover {
 	background: rgba(56, 189, 248, 0.15);
 	border-color: var(--accent-cyan);
+}
+
+/* Pass Transmission and Frequency Card */
+.pass-transmission-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	background: rgba(8, 14, 32, 0.7);
+	border: 1px solid rgba(56, 189, 248, 0.15);
+	border-radius: 10px;
+	padding: 10px 12px;
+	transition: border-color 0.2s;
+}
+
+.pass-transmission-card:hover {
+	border-color: rgba(56, 189, 248, 0.35);
+}
+
+.transmission-mode-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mode-title-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.mode-label {
+	font-size: 0.65rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+.trans-pill-group {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.trans-mode-pill {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	color: var(--text-muted);
+	font-size: 0.68rem;
+	font-weight: 600;
+	padding: 2px 7px;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.trans-mode-pill:hover {
+	color: var(--text-main);
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.trans-mode-pill.active {
+	background: rgba(56, 189, 248, 0.2);
+	border-color: rgba(56, 189, 248, 0.5);
+	color: var(--accent-cyan);
+	box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+
+.freq-band-tag {
+	font-size: 0.6rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	background: rgba(168, 85, 247, 0.15);
+	color: #c084fc;
+	border: 1px solid rgba(168, 85, 247, 0.3);
+	padding: 1px 6px;
+	border-radius: 4px;
+	text-transform: uppercase;
+}
+
+.frequency-hero-display {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	background: rgba(4, 8, 20, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	border-radius: 6px;
+	padding: 6px 10px;
+}
+
+.freq-main-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.freq-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.freq-icon-pulse {
+	color: var(--accent-cyan);
+	flex-shrink: 0;
+}
+
+.freq-caption {
+	font-size: 0.68rem;
+	font-weight: 700;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.freq-val {
+	font-family: var(--font-mono);
+	font-size: 0.95rem;
+	font-weight: 800;
+	color: var(--accent-cyan);
+	letter-spacing: 0.02em;
+}
+
+.freq-mode-indicator {
+	font-size: 0.65rem;
+	font-weight: 600;
+	color: #94a3b8;
+	background: rgba(255, 255, 255, 0.06);
+	padding: 1px 6px;
+	border-radius: 4px;
+	white-space: nowrap;
+}
+
+.freq-desc-text {
+	font-size: 0.65rem;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pass-footer-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.7rem;
+	font-family: var(--font-mono);
+	color: var(--text-muted);
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.summary-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--accent-cyan);
+	box-shadow: 0 0 6px var(--accent-cyan);
+	flex-shrink: 0;
+}
+
+.summary-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Countdown Transmission Banner */
+.countdown-transmission-banner {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: rgba(5, 10, 25, 0.6);
+	border: 1px solid rgba(56, 189, 248, 0.2);
+	border-radius: 8px;
+	padding: 6px 12px;
+	margin-top: 10px;
+	flex-wrap: wrap;
+}
+
+.cd-trans-title {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 0.7rem;
+	font-weight: 700;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.cd-freq {
+	font-family: var(--font-mono);
+	font-size: 0.9rem;
+	font-weight: 800;
+	color: var(--accent-cyan);
+}
+
+.cd-mode-chips {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+	flex-wrap: wrap;
+}
+
+.cd-mode-chip {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	color: var(--text-muted);
+	font-size: 0.65rem;
+	font-weight: 600;
+	padding: 2px 7px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.cd-mode-chip:hover {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.cd-mode-chip.active {
+	background: rgba(56, 189, 248, 0.2);
+	border-color: rgba(56, 189, 248, 0.4);
+	color: var(--accent-cyan);
+}
+
+/* Fleet Transmissions List */
+.transmissions-spec-row {
+	flex-direction: column !important;
+	align-items: flex-start !important;
+	gap: 8px;
+}
+
+.transmissions-spec-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	width: 100%;
+}
+
+.transmission-spec-item {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	background: rgba(5, 10, 25, 0.5);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	border-radius: 6px;
+	padding: 6px 10px;
+}
+
+.spec-item-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.spec-type-tag {
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: var(--text-main);
+}
+
+.spec-freq-val {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 700;
+	color: var(--accent-cyan);
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.spec-band-pill {
+	font-size: 0.6rem;
+	font-weight: 700;
+	background: rgba(168, 85, 247, 0.15);
+	color: #c084fc;
+	border: 1px solid rgba(168, 85, 247, 0.3);
+	padding: 1px 5px;
+	border-radius: 4px;
+	text-transform: uppercase;
+}
+
+.spec-desc-text {
+	font-size: 0.68rem;
+	color: var(--text-muted);
+}
+
+/* Radar Transmissions Box */
+.radar-transmissions-box {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	background: rgba(5, 10, 25, 0.6);
+	border: 1px solid rgba(56, 189, 248, 0.15);
+	border-radius: 10px;
+	padding: 10px;
+	margin-bottom: 14px;
+}
+
+.radar-trans-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.7rem;
+	font-weight: 700;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.radar-trans-chips {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.radar-trans-chip {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 6px;
+	padding: 4px 8px;
+	font-size: 0.72rem;
+}
+
+.radar-trans-type {
+	font-weight: 600;
+	color: var(--text-main);
+}
+
+.radar-trans-freq {
+	font-family: var(--font-mono);
+	font-weight: 700;
+	margin-left: auto;
+}
+
+.radar-trans-band {
+	font-size: 0.6rem;
+	font-weight: 700;
+	background: rgba(168, 85, 247, 0.15);
+	color: #c084fc;
+	border: 1px solid rgba(168, 85, 247, 0.3);
+	padding: 1px 5px;
+	border-radius: 4px;
 }
 
 /* Radar Layout */

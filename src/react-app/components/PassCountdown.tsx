@@ -10,13 +10,19 @@ import {
 	ChevronRight,
 } from "lucide-react";
 import type { SatellitePass, LiveTelemetry } from "../types";
-import { formatDuration } from "../utils/satelliteTracker";
+import {
+	formatDuration,
+	getSatelliteTransmissions,
+	getActiveTransmission,
+} from "../utils/satelliteTracker";
 
 interface PassCountdownProps {
 	nextPass: SatellitePass | null;
 	activePass: SatellitePass | null;
 	liveTelemetry: LiveTelemetry | null;
 	onSelectPassForRadar: (pass: SatellitePass) => void;
+	selectedTransmissionType?: string;
+	onSelectTransmissionType?: (type: string) => void;
 }
 
 export const PassCountdown: React.FC<PassCountdownProps> = ({
@@ -24,6 +30,8 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	activePass,
 	liveTelemetry,
 	onSelectPassForRadar,
+	selectedTransmissionType,
+	onSelectTransmissionType,
 }) => {
 	const [now, setNow] = useState(new Date());
 
@@ -50,6 +58,8 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 			0,
 			Math.floor((activePass.endTime.getTime() - now.getTime()) / 1000)
 		);
+		const activeTransmissions = getSatelliteTransmissions(activePass);
+		const activeTrans = getActiveTransmission(activeTransmissions, selectedTransmissionType);
 
 		return (
 			<div className="countdown-card active-pass-glow">
@@ -106,6 +116,28 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 							<span className="tel-val text-amber">{activePass.maxElevation}°</span>
 						</div>
 					</div>
+
+					{/* Transmission mode & frequency */}
+					<div className="countdown-transmission-banner">
+						<div className="cd-trans-title">
+							<Radio size={13} className="text-cyan" />
+							<span>Downlink Frequency:</span>
+						</div>
+						<span className="cd-freq highlight-cyan">{activeTrans?.frequency || "Unspecified"}</span>
+						<div className="cd-mode-chips">
+							{activeTransmissions.map((t) => (
+								<button
+									key={t.type}
+									type="button"
+									className={`cd-mode-chip ${t.type === activeTrans?.type ? "active" : ""}`}
+									onClick={() => onSelectTransmissionType && onSelectTransmissionType(t.type)}
+									title={`${t.type}: ${t.frequency}`}
+								>
+									{t.type}
+								</button>
+							))}
+						</div>
+					</div>
 				</div>
 
 				<div className="pass-footer-bar">
@@ -135,6 +167,9 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	}
 
 	// Normal Next Pass Countdown
+	const nextTransmissions = getSatelliteTransmissions(nextPass);
+	const nextTrans = getActiveTransmission(nextTransmissions, selectedTransmissionType);
+
 	const diffMs = nextPass.startTime.getTime() - now.getTime();
 	const diffSec = Math.max(0, Math.floor(diffMs / 1000));
 	const hours = Math.floor(diffSec / 3600);
@@ -253,6 +288,28 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 								<span>In Earth Shadow (RF / Telemetry)</span>
 							</div>
 						)}
+					</div>
+
+					{/* Transmission mode & frequency banner */}
+					<div className="countdown-transmission-banner">
+						<div className="cd-trans-title">
+							<Radio size={13} className="text-cyan" />
+							<span>Downlink:</span>
+						</div>
+						<span className="cd-freq highlight-cyan">{nextTrans?.frequency || "Unspecified"}</span>
+						<div className="cd-mode-chips">
+							{nextTransmissions.map((t) => (
+								<button
+									key={t.type}
+									type="button"
+									className={`cd-mode-chip ${t.type === nextTrans?.type ? "active" : ""}`}
+									onClick={() => onSelectTransmissionType && onSelectTransmissionType(t.type)}
+									title={`${t.type}: ${t.frequency}`}
+								>
+									{t.type}
+								</button>
+							))}
+						</div>
 					</div>
 				</div>
 			</div>

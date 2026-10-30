@@ -7,6 +7,7 @@ import type {
 	LiveTelemetry,
 	PassVisibility,
 	ElevationCategory,
+	SatelliteTransmission,
 } from "../types";
 
 export function rad2deg(rad: number): number {
@@ -304,6 +305,7 @@ export function calculatePasses(
 								noradId: satellite.noradId,
 								category: satellite.category,
 								frequency: satellite.frequency,
+								transmissions: satellite.transmissions,
 								startTime: riseTime,
 								peakTime: maxElTime,
 								endTime: setTime,
@@ -338,4 +340,105 @@ export function calculatePasses(
 	}
 
 	return allPasses.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
+/**
+ * Extracts or parses structured transmissions for any satellite or pass.
+ * Falls back to parsing legacy frequency strings if structured transmissions aren't directly provided.
+ */
+export function getSatelliteTransmissions(
+	item?: {
+		transmissions?: SatelliteTransmission[];
+		frequency?: string;
+	} | null
+): SatelliteTransmission[] {
+	if (!item) return [];
+	if (Array.isArray(item.transmissions) && item.transmissions.length > 0) {
+		return item.transmissions;
+	}
+
+	const freqStr = item.frequency?.trim();
+	if (!freqStr) {
+		return [{ type: "Beacon", frequency: "Unspecified" }];
+	}
+
+	// Parse fallback strings
+	const results: SatelliteTransmission[] = [];
+	const segments = freqStr.split("/").map((s) => s.trim()).filter(Boolean);
+
+	for (const segment of segments) {
+		const freqMatch = segment.match(/(\d+(?:\.\d+)?\s*(?:MHz|GHz|kHz))/i);
+		const freq = freqMatch ? freqMatch[1] : segment;
+		const descMatch = segment.match(/\(([^)]+)\)/);
+		const desc = descMatch ? descMatch[1].trim() : "";
+
+		const lowerDesc = desc.toLowerCase();
+		if (lowerDesc.includes("gmsk") && lowerDesc.includes("sstv")) {
+			results.push({
+				type: "GMSK Telemetry",
+				frequency: freq,
+				band: freq.includes("43") ? "UHF" : freq.includes("14") ? "VHF" : undefined,
+				description: "GMSK Telemetry & Sensor Beacon",
+			});
+			results.push({
+				type: "SSTV",
+				frequency: freq,
+				band: freq.includes("43") ? "UHF" : freq.includes("14") ? "VHF" : undefined,
+				description: "Slow-Scan TV Image Downlink",
+			});
+		} else if (desc) {
+			let type = desc;
+			if (lowerDesc.includes("gmsk")) type = "GMSK Telemetry";
+			else if (lowerDesc.includes("sstv")) type = "SSTV";
+			else if (lowerDesc.includes("fm voice") || lowerDesc.includes("voice")) type = "FM Voice";
+			else if (lowerDesc.includes("aprs")) type = "APRS";
+			else if (lowerDesc.includes("repeater")) type = "Crossband Repeater";
+
+			results.push({
+				type,
+				frequency: freq,
+				band: freq.includes("43") ? "UHF" : freq.includes("14") ? "VHF" : undefined,
+				description: desc,
+			});
+		} else {
+			results.push({
+				type: freq.includes("43") ? "UHF Downlink" : freq.includes("14") ? "VHF Downlink" : "Downlink",
+				frequency: freq,
+			});
+		}
+	}
+
+	return results.length > 0 ? results : [{ type: "Telemetry", frequency: freqStr }];
+}
+
+/**
+ * Checks whether a list of transmissions contains the requested transmission type.
+ */
+export function matchesTransmissionType(
+	transmissions: SatelliteTransmission[],
+	selectedType: string
+): boolean {
+	if (!selectedType || selectedType === "all") return true;
+	const normTarget = selectedType.trim().toLowerCase();
+	return transmissions.some((t) => {
+		const normType = t.type.trim().toLowerCase();
+		return normType === normTarget || normType.includes(normTarget) || normTarget.includes(normType);
+	});
+}
+
+/**
+ * Returns the matching transmission from a list based on chosen type, or defaults to the first one.
+ */
+export function getActiveTransmission(
+	transmissions: SatelliteTransmission[],
+	selectedType?: string
+): SatelliteTransmission | undefined {
+	if (!transmissions || transmissions.length === 0) return undefined;
+	if (!selectedType || selectedType === "all") return transmissions[0];
+	const normTarget = selectedType.trim().toLowerCase();
+	const match = transmissions.find((t) => {
+		const normType = t.type.trim().toLowerCase();
+		return normType === normTarget || normType.includes(normTarget) || normTarget.includes(normType);
+	});
+	return match || transmissions[0];
 }

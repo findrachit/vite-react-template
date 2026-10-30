@@ -12,7 +12,33 @@
     "altitudeKm": 420,
     "inclinationDeg": 51.64,
     "periodMin": 92.9,
-    "frequency": "145.800 MHz (FM Voice) / 145.825 MHz (APRS) / 437.525 MHz",
+    "frequency": "145.800 MHz (FM Voice & SSTV) / 145.825 MHz (APRS) / 437.525 MHz",
+    "transmissions": [
+      {
+        "type": "FM Voice",
+        "frequency": "145.800 MHz",
+        "band": "VHF",
+        "description": "Amateur Radio Crew Contact / Voice Downlink"
+      },
+      {
+        "type": "SSTV",
+        "frequency": "145.800 MHz",
+        "band": "VHF",
+        "description": "Slow-Scan TV (ARISS Event Downlink, PD120 mode)"
+      },
+      {
+        "type": "APRS",
+        "frequency": "145.825 MHz",
+        "band": "VHF",
+        "description": "AX.25 Packet Radio Digipeater (1200 bps)"
+      },
+      {
+        "type": "Crossband Repeater",
+        "frequency": "437.525 MHz",
+        "band": "UHF",
+        "description": "FM Voice Crossband Repeater Downlink"
+      }
+    ],
     "description": "The largest modular space station in low Earth orbit. A multinational collaborative project between NASA, Roscosmos, JAXA, ESA, and CSA, continuously inhabited by astronauts and cosmonauts since November 2000.",
     "color": "#38bdf8",
     "icon": "space-station",
@@ -33,6 +59,20 @@
     "inclinationDeg": 97.38,
     "periodMin": 94.3,
     "frequency": "437.350 MHz (GMSK Telemetry & SSTV Images)",
+    "transmissions": [
+      {
+        "type": "GMSK Telemetry",
+        "frequency": "437.350 MHz",
+        "band": "UHF",
+        "description": "4800 / 9600 bps USP Telemetry & Sensor Beacon"
+      },
+      {
+        "type": "SSTV",
+        "frequency": "437.350 MHz",
+        "band": "UHF",
+        "description": "Slow-Scan TV Image Downlink (Robot36 mode)"
+      }
+    ],
     "description": "Educational 1U CubeSat developed by students and young researchers from the Republic of Sakha (Yakutia). Features an amateur radio transmitter sending Slow-Scan TV (SSTV) images and regional environmental sensor telemetry.",
     "color": "#a855f7",
     "icon": "satellite",
@@ -53,6 +93,20 @@
     "inclinationDeg": 97.49,
     "periodMin": 95.4,
     "frequency": "437.625 MHz (GMSK Telemetry & SSTV Images)",
+    "transmissions": [
+      {
+        "type": "GMSK Telemetry",
+        "frequency": "437.625 MHz",
+        "band": "UHF",
+        "description": "2400 / 4800 bps USP Telemetry & Beacon"
+      },
+      {
+        "type": "SSTV",
+        "frequency": "437.625 MHz",
+        "band": "UHF",
+        "description": "Lepton Telescope Astronomy SSTV Downlink (Robot72 mode)"
+      }
+    ],
     "description": "Educational 3U CubeSat equipped with a Lepton optical telescope for school astronomy observations. Transmits high-resolution SSTV images and sensor telemetry over amateur radio.",
     "color": "#10b981",
     "icon": "satellite",

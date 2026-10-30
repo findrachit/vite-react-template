@@ -8,30 +8,78 @@ interface AddSatelliteModalProps {
 	onAddSatellite: (sat: SatelliteInfo) => void;
 }
 
-const POPULAR_SUGGESTIONS = [
+const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; name: string }> = [
 	{
 		noradId: 20580,
 		name: "HST (Hubble Space Telescope)",
 		category: "Space Telescope",
 		color: "#3b82f6",
+		frequency: "2255.500 MHz (S-Band Telemetry)",
+		transmissions: [
+			{
+				type: "S-Band Telemetry",
+				frequency: "2255.500 MHz",
+				band: "S-Band",
+				description: "Multiple Access Tracking & Telemetry",
+			},
+		],
 	},
 	{
 		noradId: 48274,
 		name: "CSS (Tiangong Space Station)",
 		category: "Space Station",
 		color: "#f59e0b",
+		frequency: "145.900 MHz (FM Voice) / 437.050 MHz (GMSK Telemetry)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.900 MHz",
+				band: "VHF",
+				description: "Crew Voice Downlink",
+			},
+			{
+				type: "GMSK Telemetry",
+				frequency: "437.050 MHz",
+				band: "UHF",
+				description: "Engineering Telemetry Beacon",
+			},
+		],
 	},
 	{
 		noradId: 33591,
 		name: "NOAA 19 (Weather Satellite)",
 		category: "Earth Observation",
 		color: "#10b981",
+		frequency: "137.100 MHz (APT Weather Fax) / 1698.000 MHz (HRPT)",
+		transmissions: [
+			{
+				type: "APT Weather Fax",
+				frequency: "137.100 MHz",
+				band: "VHF",
+				description: "Analog Weather Satellite Image Broadcast",
+			},
+			{
+				type: "HRPT Telemetry",
+				frequency: "1698.000 MHz",
+				band: "L-Band",
+				description: "High Resolution Picture Telemetry",
+			},
+		],
 	},
 	{
 		noradId: 43013,
 		name: "NOAA 20 (JPSS-1)",
 		category: "Earth Observation",
 		color: "#06b6d4",
+		frequency: "7812.000 MHz (HRD Telemetry)",
+		transmissions: [
+			{
+				type: "HRD Telemetry",
+				frequency: "7812.000 MHz",
+				band: "X-Band",
+				description: "High Rate Data Direct Broadcast",
+			},
+		],
 	},
 ];
 
@@ -99,13 +147,17 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 			return;
 		}
 
+		const matchingPreset = POPULAR_SUGGESTIONS.find((p) => p.noradId === noradId);
+
 		const newSat: SatelliteInfo = {
 			id: `sat-${noradId}-${Date.now()}`,
 			name: nameInput.trim() || `Satellite ${noradId}`,
 			displayName: nameInput.trim() || `Satellite ${noradId}`,
 			noradId,
 			color: colorInput,
-			category: "User Tracked Asset",
+			category: matchingPreset?.category || "User Tracked Asset",
+			frequency: matchingPreset?.frequency,
+			transmissions: matchingPreset?.transmissions,
 			description: `Tracked satellite added via NORAD ID ${noradId}`,
 			tleLine1: tle1Input.trim(),
 			tleLine2: tle2Input.trim(),

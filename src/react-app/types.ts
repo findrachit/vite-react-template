@@ -1,3 +1,10 @@
+export interface SatelliteTransmission {
+	type: string; // e.g., "GMSK Telemetry", "FM Voice", "SSTV", "APRS"
+	frequency: string; // e.g., "437.350 MHz", "145.800 MHz"
+	band?: string; // e.g., "UHF", "VHF"
+	description?: string; // e.g., "4800 / 9600 bps USP Telemetry"
+}
+
 export interface SatelliteInfo {
 	id: string;
 	name: string;
@@ -12,6 +19,7 @@ export interface SatelliteInfo {
 	inclinationDeg?: number;
 	periodMin?: number;
 	frequency?: string;
+	transmissions?: SatelliteTransmission[];
 	description?: string;
 	color: string;
 	icon?: string;
@@ -48,6 +56,7 @@ export interface SatellitePass {
 	noradId: number;
 	category?: string;
 	frequency?: string;
+	transmissions?: SatelliteTransmission[];
 	startTime: Date;
 	peakTime: Date;
 	endTime: Date;
