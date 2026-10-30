@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
 	Radio,
 	Sparkles,
@@ -7,15 +7,24 @@ import {
 	ArrowRight,
 	Satellite,
 	Radar,
+	SlidersHorizontal,
+	RotateCcw,
 } from "lucide-react";
 import type { SatellitePass, SatelliteInfo } from "../types";
-import { formatDuration } from "../utils/satelliteTracker";
+import {
+	formatDuration,
+	getSatelliteTransmissions,
+	matchesTransmissionType,
+	getActiveTransmission,
+} from "../utils/satelliteTracker";
 
 interface PassListProps {
 	passes: SatellitePass[];
 	satellites: SatelliteInfo[];
 	onSelectPassForRadar: (pass: SatellitePass) => void;
 	selectedPassId?: string;
+	selectedTransmissionType?: string;
+	onSelectTransmissionType?: (type: string) => void;
 }
 
 export const PassList: React.FC<PassListProps> = ({
@@ -23,11 +32,53 @@ export const PassList: React.FC<PassListProps> = ({
 	satellites,
 	onSelectPassForRadar,
 	selectedPassId,
+	selectedTransmissionType: propSelectedTransmissionType,
+	onSelectTransmissionType,
 }) => {
 	const [selectedSatelliteId, setSelectedSatelliteId] = useState<string>("all");
 	const [minElevationFilter, setMinElevationFilter] = useState<number>(10);
 	const [visibleOnly, setVisibleOnly] = useState<boolean>(false);
 	const [timeMode, setTimeMode] = useState<"local" | "utc">("local");
+	const [localTransmissionType, setLocalTransmissionType] = useState<string>("all");
+
+	// Local overrides per pass card if user clicks a transmission chip on that specific card
+	const [cardTransmissionOverrides, setCardTransmissionOverrides] = useState<Record<string, string>>({});
+
+	const selectedTransmission = propSelectedTransmissionType ?? localTransmissionType;
+
+	const handleSelectTransmission = (type: string) => {
+		if (onSelectTransmissionType) {
+			onSelectTransmissionType(type);
+		}
+		setLocalTransmissionType(type);
+	};
+
+	const handleSetCardTransmission = (passId: string, type: string) => {
+		setCardTransmissionOverrides((prev) => ({
+			...prev,
+			[passId]: type,
+		}));
+	};
+
+	// Collect unique transmission types across the fleet
+	const availableTransmissionTypes = useMemo(() => {
+		const typeSet = new Set<string>();
+		satellites.forEach((sat) => {
+			const trans = getSatelliteTransmissions(sat);
+			trans.forEach((t) => typeSet.add(t.type));
+		});
+
+		// Prioritize popular ones (e.g. GMSK Telemetry, FM Voice, SSTV)
+		const priority = ["GMSK Telemetry", "FM Voice", "SSTV", "APRS", "Crossband Repeater"];
+		return Array.from(typeSet).sort((a, b) => {
+			const idxA = priority.indexOf(a);
+			const idxB = priority.indexOf(b);
+			if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+			if (idxA !== -1) return -1;
+			if (idxB !== -1) return 1;
+			return a.localeCompare(b);
+		});
+	}, [satellites]);
 
 	// Filter passes
 	const filteredPasses = passes.filter((pass) => {
@@ -39,6 +90,12 @@ export const PassList: React.FC<PassListProps> = ({
 		}
 		if (visibleOnly && pass.visibility !== "visible") {
 			return false;
+		}
+		if (selectedTransmission !== "all") {
+			const passTrans = getSatelliteTransmissions(pass);
+			if (!matchesTransmissionType(passTrans, selectedTransmission)) {
+				return false;
+			}
 		}
 		return true;
 	});
@@ -66,10 +123,19 @@ export const PassList: React.FC<PassListProps> = ({
 		});
 	};
 
+	const resetFilters = () => {
+		setSelectedSatelliteId("all");
+		setMinElevationFilter(10);
+		setVisibleOnly(false);
+		handleSelectTransmission("all");
+		setCardTransmissionOverrides({});
+	};
+
 	return (
 		<div className="pass-list-section">
 			{/* Controls and Filters */}
 			<div className="filters-card">
+				{/* Row 1: Satellite & Elevation/Time Filters */}
 				<div className="filters-row">
 					{/* Satellite Filter Tabs */}
 					<div className="filter-group">
@@ -135,11 +201,66 @@ export const PassList: React.FC<PassListProps> = ({
 						</button>
 					</div>
 				</div>
+
+				{/* Row 2: Transmission Type Selector */}
+				<div className="filters-row filters-row-secondary">
+					<div className="filter-group">
+						<span className="filter-label flex-align-gap">
+							<Radio size={13} className="text-cyan" />
+							<span>Transmission Type:</span>
+						</span>
+						<div className="btn-tab-group transmission-tabs">
+							<button
+								className={`filter-chip ${selectedTransmission === "all" ? "active" : ""}`}
+								onClick={() => handleSelectTransmission("all")}
+							>
+								All Modes ({passes.length})
+							</button>
+							{availableTransmissionTypes.map((type) => {
+								const count = passes.filter((p) =>
+									matchesTransmissionType(getSatelliteTransmissions(p), type)
+								).length;
+								return (
+									<button
+										key={type}
+										className={`filter-chip ${selectedTransmission === type ? "active" : ""}`}
+										onClick={() => handleSelectTransmission(type)}
+									>
+										<span>{type}</span>
+										<span className="filter-count-badge">({count})</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+
+					{selectedTransmission !== "all" && (
+						<div className="transmission-active-indicator">
+							<span className="active-mode-tag">
+								Filtering: <strong>{selectedTransmission}</strong>
+							</span>
+							<button
+								className="btn-clear-mode"
+								onClick={() => handleSelectTransmission("all")}
+								title="Show all transmission types"
+							>
+								<RotateCcw size={12} />
+								<span>Show All Modes</span>
+							</button>
+						</div>
+					)}
+				</div>
 			</div>
 
 			{/* Pass count status */}
 			<div className="pass-count-summary">
-				Showing <strong>{filteredPasses.length}</strong> satellite passes across the next 48 hours
+				Showing <strong>{filteredPasses.length}</strong> satellite passes
+				{selectedTransmission !== "all" && (
+					<span>
+						{" "}for <strong>{selectedTransmission}</strong>
+					</span>
+				)}{" "}
+				across the next 48 hours
 			</div>
 
 			{/* Pass Groupings */}
@@ -148,17 +269,16 @@ export const PassList: React.FC<PassListProps> = ({
 					<Satellite className="empty-icon" size={28} />
 					<div className="empty-title">No passes match current filters</div>
 					<div className="empty-subtitle">
-						Try clearing the "Naked-Eye Visible" toggle or setting the minimum elevation back to 10°.
+						{selectedTransmission !== "all"
+							? `No passes found supporting ${selectedTransmission} under current filters. Try selecting "All Modes" or lowering the minimum elevation.`
+							: `Try clearing the "Naked-Eye Visible" toggle or setting the minimum elevation back to 10°.`}
 					</div>
 					<button
 						className="btn-secondary mt-12"
-						onClick={() => {
-							setSelectedSatelliteId("all");
-							setMinElevationFilter(10);
-							setVisibleOnly(false);
-						}}
+						onClick={resetFilters}
 					>
-						Reset Filters
+						<SlidersHorizontal size={14} />
+						<span>Reset All Filters</span>
 					</button>
 				</div>
 			) : (
@@ -172,6 +292,21 @@ export const PassList: React.FC<PassListProps> = ({
 						<div className="pass-grid">
 							{dayPasses.map((pass) => {
 								const isSelected = selectedPassId === pass.id;
+								const transmissions = getSatelliteTransmissions(pass);
+
+								// Determine active transmission for this pass card:
+								// 1. Specific card override if clicked by user
+								// 2. Or matching transmission if global filter is active
+								// 3. Or first transmission in list
+								const activeTransType =
+									cardTransmissionOverrides[pass.id] ||
+									(selectedTransmission !== "all" && matchesTransmissionType(transmissions, selectedTransmission)
+										? getActiveTransmission(transmissions, selectedTransmission)?.type
+										: transmissions[0]?.type);
+
+								const activeTrans =
+									transmissions.find((t) => t.type === activeTransType) || transmissions[0];
+
 								return (
 									<div
 										key={pass.id}
@@ -262,14 +397,68 @@ export const PassList: React.FC<PassListProps> = ({
 											</div>
 										</div>
 
-										{/* Card Footer: Frequency and Radar Action */}
-										<div className="pass-card-footer">
-											{pass.frequency && (
-												<div className="freq-tag" title={pass.frequency}>
-													<Radio size={12} className="text-cyan" />
-													<span>{pass.frequency.split("/")[0].trim()}</span>
+										{/* Transmission Mode & Corresponding Frequency Section */}
+										<div className="pass-transmission-card">
+											<div className="transmission-mode-header">
+												<div className="mode-title-group">
+													<span className="mode-label">Mode:</span>
+													<div className="trans-pill-group">
+														{transmissions.map((t) => {
+															const isActive = activeTrans?.type === t.type;
+															return (
+																<button
+																	key={t.type}
+																	type="button"
+																	className={`trans-mode-pill ${isActive ? "active" : ""}`}
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		handleSetCardTransmission(pass.id, t.type);
+																	}}
+																	title={`Switch to ${t.type} (${t.frequency})`}
+																>
+																	{t.type}
+																</button>
+															);
+														})}
+													</div>
 												</div>
-											)}
+
+												{activeTrans?.band && (
+													<span className="freq-band-tag">{activeTrans.band}</span>
+												)}
+											</div>
+
+											{/* Frequency Display */}
+											<div className="frequency-hero-display">
+												<div className="freq-main-row">
+													<div className="freq-left">
+														<Radio size={14} className="text-cyan freq-icon-pulse" />
+														<span className="freq-caption">Frequency:</span>
+														<span className="freq-val highlight-cyan">
+															{activeTrans?.frequency || "Unspecified"}
+														</span>
+													</div>
+													<span className="freq-mode-indicator">{activeTrans?.type}</span>
+												</div>
+												{activeTrans?.description && (
+													<div className="freq-desc-text" title={activeTrans.description}>
+														{activeTrans.description}
+													</div>
+												)}
+											</div>
+										</div>
+
+										{/* Card Footer: Summary and Radar Action */}
+										<div className="pass-card-footer">
+											<div
+												className="pass-footer-summary"
+												title={activeTrans ? `${activeTrans.type}: ${activeTrans.frequency}` : ""}
+											>
+												<span className="summary-dot" />
+												<span className="summary-text">
+													{activeTrans ? `${activeTrans.type} • ${activeTrans.frequency}` : "Active pass"}
+												</span>
+											</div>
 											<button
 												className="radar-view-btn"
 												onClick={() => onSelectPassForRadar(pass)}

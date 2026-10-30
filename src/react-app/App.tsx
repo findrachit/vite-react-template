@@ -58,6 +58,7 @@ export function App() {
 	const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 	const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 	const [selectedPass, setSelectedPass] = useState<SatellitePass | null>(null);
+	const [selectedTransmissionType, setSelectedTransmissionType] = useState<string>("all");
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	// 4. Passes State (Current time until next 2 days / 48 hours)
@@ -212,6 +213,8 @@ export function App() {
 					activePass={activePass}
 					liveTelemetry={activePass ? liveTelemetries[activePass.satelliteId] : null}
 					onSelectPassForRadar={handleSelectPassForRadar}
+					selectedTransmissionType={selectedTransmissionType}
+					onSelectTransmissionType={setSelectedTransmissionType}
 				/>
 
 				{/* Tab 1: 48-Hour Pass Schedule */}
@@ -221,6 +224,8 @@ export function App() {
 						satellites={satellites}
 						onSelectPassForRadar={handleSelectPassForRadar}
 						selectedPassId={activeSelectedPass?.id}
+						selectedTransmissionType={selectedTransmissionType}
+						onSelectTransmissionType={setSelectedTransmissionType}
 					/>
 				)}
 

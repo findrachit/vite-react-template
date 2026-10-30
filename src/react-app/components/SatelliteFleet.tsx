@@ -7,6 +7,7 @@ import {
 	Plus,
 } from "lucide-react";
 import type { SatelliteInfo, LiveTelemetry, ObserverLocation } from "../types";
+import { getSatelliteTransmissions } from "../utils/satelliteTracker";
 
 interface SatelliteFleetProps {
 	satellites: SatelliteInfo[];
@@ -132,15 +133,32 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 									<span className="spec-key">Orbital Period:</span>
 									<span className="spec-value">{sat.periodMin ?? 92.5} minutes</span>
 								</div>
-								{sat.frequency && (
-									<div className="spec-row">
-										<span className="spec-key">Downlink / Radio:</span>
-										<span className="spec-value highlight-cyan">
-											<Radio size={12} className="inline-icon" />
-											{sat.frequency}
-										</span>
-									</div>
-								)}
+								{(() => {
+									const transmissions = getSatelliteTransmissions(sat);
+									if (transmissions.length === 0) return null;
+									return (
+										<div className="spec-row transmissions-spec-row">
+											<span className="spec-key">Transmissions & Frequencies:</span>
+											<div className="transmissions-spec-list">
+												{transmissions.map((t) => (
+													<div key={t.type} className="transmission-spec-item">
+														<div className="spec-item-header">
+															<span className="spec-type-tag">{t.type}</span>
+															<span className="spec-freq-val highlight-cyan">
+																<Radio size={11} className="inline-icon" />
+																{t.frequency}
+															</span>
+															{t.band && <span className="spec-band-pill">{t.band}</span>}
+														</div>
+														{t.description && (
+															<div className="spec-desc-text">{t.description}</div>
+														)}
+													</div>
+												))}
+											</div>
+										</div>
+									);
+								})()}
 							</div>
 
 							{/* TLE Expandable Drawer */}

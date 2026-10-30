@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Radar, Play, Pause, Satellite } from "lucide-react";
+import { Radar, Play, Pause, Satellite, Radio } from "lucide-react";
 import type { SatellitePass, LiveTelemetry, SatelliteInfo } from "../types";
+import { getSatelliteTransmissions } from "../utils/satelliteTracker";
 
 interface SkyRadarProps {
 	passes: SatellitePass[];
@@ -385,6 +386,29 @@ export const SkyRadar: React.FC<SkyRadarProps> = ({
 								<span className="stat-val">{activePass.minRangeKm} km</span>
 							</div>
 						</div>
+
+						{/* Transmissions & Frequencies */}
+						{(() => {
+							const transmissions = getSatelliteTransmissions(activePass);
+							if (transmissions.length === 0) return null;
+							return (
+								<div className="radar-transmissions-box">
+									<div className="radar-trans-header">
+										<Radio size={12} className="text-cyan" />
+										<span>Downlink Transmissions:</span>
+									</div>
+									<div className="radar-trans-chips">
+										{transmissions.map((t) => (
+											<div key={t.type} className="radar-trans-chip" title={t.description || ""}>
+												<span className="radar-trans-type">{t.type}</span>
+												<span className="radar-trans-freq highlight-cyan">{t.frequency}</span>
+												{t.band && <span className="radar-trans-band">{t.band}</span>}
+											</div>
+										))}
+									</div>
+								</div>
+							);
+						})()}
 
 						{/* Trajectory Breakdown */}
 						<div className="trajectory-flow-card">
