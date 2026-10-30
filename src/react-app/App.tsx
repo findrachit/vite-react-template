@@ -32,7 +32,8 @@ export function App() {
 			if (saved) {
 				const custom = JSON.parse(saved) as SatelliteInfo[];
 				const ids = new Set(defaultList.map((s) => s.id));
-				const extras = custom.filter((s) => !ids.has(s.id));
+				const noradIds = new Set(defaultList.map((s) => s.noradId));
+				const extras = custom.filter((s) => !ids.has(s.id) && !noradIds.has(s.noradId));
 				return [...defaultList, ...extras];
 			}
 		} catch {
@@ -162,7 +163,7 @@ export function App() {
 			const updated = [...prev, newSat];
 			try {
 				const customOnly = updated.filter(
-					(s) => !defaultSatellitesJson.some((d) => d.id === s.id)
+					(s) => !defaultSatellitesJson.some((d) => d.id === s.id || d.noradId === s.noradId)
 				);
 				localStorage.setItem(STORAGE_KEY_SATELLITES, JSON.stringify(customOnly));
 			} catch {

@@ -38,5 +38,25 @@
     "icon": "satellite",
     "tleLine1": "1 67290U 25313AU  26301.67017416  .00005856  00000+0  22344-3 0  9993",
     "tleLine2": "2 67290  97.3812  15.1411 0007502 238.2933 121.7575 15.27023639 46335"
+  },
+  {
+    "id": "umka1",
+    "name": "UMKA-1 (RS40S)",
+    "displayName": "UmKA-1",
+    "callsign": "RS40S",
+    "noradId": 57172,
+    "designator": "2023-091G",
+    "category": "CubeSat / Amateur Radio",
+    "launchDate": "2023-06-27",
+    "orbitType": "Sun-Synchronous Orbit (SSO)",
+    "altitudeKm": 540,
+    "inclinationDeg": 97.49,
+    "periodMin": 95.4,
+    "frequency": "437.625 MHz (GMSK Telemetry & SSTV Images)",
+    "description": "Educational 3U CubeSat equipped with a Lepton optical telescope for school astronomy observations. Transmits high-resolution SSTV images and sensor telemetry over amateur radio.",
+    "color": "#10b981",
+    "icon": "satellite",
+    "tleLine1": "1 57172U 23091G   26302.91791684  .00003498  00000+0  15561-3 0  9999",
+    "tleLine2": "2 57172  97.4882   1.0909 0012553  16.5977 343.5667 15.22091234184491"
   }
 ]
