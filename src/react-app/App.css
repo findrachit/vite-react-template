@@ -1963,6 +1963,32 @@ body {
 	animation: pulseDot 1.5s infinite;
 }
 
+.fleet-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sat-delete-btn {
+	background: rgba(239, 68, 68, 0.1);
+	border: 1px solid rgba(239, 68, 68, 0.25);
+	color: #f87171;
+	border-radius: 8px;
+	padding: 6px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.sat-delete-btn:hover {
+	background: rgba(239, 68, 68, 0.25);
+	border-color: rgba(239, 68, 68, 0.5);
+	color: #ef4444;
+	transform: scale(1.05);
+}
+
 .fleet-telemetry-box {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);

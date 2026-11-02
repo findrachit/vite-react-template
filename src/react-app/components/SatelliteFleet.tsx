@@ -5,6 +5,8 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Plus,
+	Trash2,
+	RotateCcw,
 } from "lucide-react";
 import type { SatelliteInfo, LiveTelemetry, ObserverLocation } from "../types";
 import { getSatelliteTransmissions } from "../utils/satelliteTracker";
@@ -14,6 +16,8 @@ interface SatelliteFleetProps {
 	liveTelemetries: Record<string, LiveTelemetry | null>;
 	location: ObserverLocation;
 	onOpenAddModal: () => void;
+	onDeleteSatellite?: (idOrNorad: string | number) => void;
+	onResetFleet?: () => void;
 }
 
 export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
@@ -21,6 +25,8 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 	liveTelemetries,
 	location,
 	onOpenAddModal,
+	onDeleteSatellite,
+	onResetFleet,
 }) => {
 	const [expandedTleId, setExpandedTleId] = useState<string | null>(null);
 
@@ -30,13 +36,29 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 				<div>
 					<h2 className="section-title">Tracked Satellite Fleet</h2>
 					<p className="section-subtitle">
-						Active orbital assets monitored from Ground Station {location.name}.
+						Active orbital assets stored in Cloudflare Workers KV & monitored from Ground Station {location.name}.
 					</p>
 				</div>
-				<button className="btn-accent" onClick={onOpenAddModal}>
-					<Plus size={16} />
-					<span>Add Satellite to Fleet</span>
-				</button>
+				<div className="flex-align-gap">
+					{onResetFleet && (
+						<button
+							className="btn-secondary"
+							onClick={() => {
+								if (window.confirm("Reset fleet catalog back to default satellites in Cloudflare Workers KV?")) {
+									onResetFleet();
+								}
+							}}
+							title="Reset fleet in Cloudflare Workers KV"
+						>
+							<RotateCcw size={15} />
+							<span>Reset Defaults</span>
+						</button>
+					)}
+					<button className="btn-accent" onClick={onOpenAddModal}>
+						<Plus size={16} />
+						<span>Add Satellite to Fleet</span>
+					</button>
+				</div>
 			</div>
 
 			<div className="fleet-grid">
@@ -69,10 +91,26 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 									</div>
 								</div>
 
-								{/* Status Badge */}
-								<div className={`status-pill ${isOverhead ? "status-overhead" : "status-orbit"}`}>
-									<span className={`status-dot ${isOverhead ? "pulse" : ""}`} />
-									<span>{isOverhead ? "OVERHEAD NOW" : "IN ORBIT"}</span>
+								{/* Status Badge & Actions */}
+								<div className="fleet-card-actions">
+									<div className={`status-pill ${isOverhead ? "status-overhead" : "status-orbit"}`}>
+										<span className={`status-dot ${isOverhead ? "pulse" : ""}`} />
+										<span>{isOverhead ? "OVERHEAD NOW" : "IN ORBIT"}</span>
+									</div>
+									{onDeleteSatellite && (
+										<button
+											className="sat-delete-btn"
+											title={`Remove ${sat.displayName} from KV fleet`}
+											onClick={(e) => {
+												e.stopPropagation();
+												if (window.confirm(`Remove ${sat.displayName} (NORAD #${sat.noradId}) from fleet?`)) {
+													onDeleteSatellite(sat.id || sat.noradId);
+												}
+											}}
+										>
+											<Trash2 size={14} />
+										</button>
+									)}
 								</div>
 							</div>
 
