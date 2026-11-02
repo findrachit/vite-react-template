@@ -65,6 +65,57 @@ export function App() {
 	const [refreshKey, setRefreshKey] = useState(0);
 	const [currentTime, setCurrentTime] = useState(new Date());
 
+	// Synchronize satellite fleet with Cloudflare Workers KV
+	useEffect(() => {
+		let isMounted = true;
+
+		async function fetchFleetFromKV() {
+			try {
+				const res = await fetch("/api/satellites");
+				if (!res.ok) throw new Error("Failed to fetch fleet from KV");
+				const kvSats = (await res.json()) as SatelliteInfo[];
+				if (!isMounted || !Array.isArray(kvSats) || kvSats.length === 0) return;
+
+				// Check if there are local offline additions to sync to KV
+				try {
+					const saved = localStorage.getItem(STORAGE_KEY_SATELLITES);
+					if (saved) {
+						const custom = JSON.parse(saved) as SatelliteInfo[];
+						const kvIds = new Set(kvSats.map((s) => s.id));
+						const kvNorads = new Set(kvSats.map((s) => s.noradId));
+						const unsynced = custom.filter((s) => !kvIds.has(s.id) && !kvNorads.has(s.noradId));
+						
+						// Auto-sync unsynced satellites to Workers KV
+						for (const s of unsynced) {
+							await fetch("/api/satellites", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify(s),
+							}).catch(() => {});
+						}
+
+						if (unsynced.length > 0) {
+							setSatellites([...kvSats, ...unsynced]);
+							return;
+						}
+					}
+				} catch {
+					// ignore localStorage sync error
+				}
+
+				setSatellites(kvSats);
+			} catch (err) {
+				console.warn("Using offline / initial satellite catalog:", err);
+			}
+		}
+
+		fetchFleetFromKV();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
 	// Auto-detect GPS location on initial load if not already saved
 	useEffect(() => {
 		if (localStorage.getItem(STORAGE_KEY_LOCATION)) return;
@@ -159,9 +210,13 @@ export function App() {
 		}
 	};
 
-	const handleAddSatellite = (newSat: SatelliteInfo) => {
+	const handleAddSatellite = async (newSat: SatelliteInfo) => {
+		// 1. Optimistic UI update
 		setSatellites((prev) => {
-			const updated = [...prev, newSat];
+			const exists = prev.some((s) => s.id === newSat.id || s.noradId === newSat.noradId);
+			const updated = exists
+				? prev.map((s) => (s.id === newSat.id || s.noradId === newSat.noradId ? newSat : s))
+				: [...prev, newSat];
 			try {
 				const customOnly = updated.filter(
 					(s) => !defaultSatellitesJson.some((d) => d.id === s.id || d.noradId === s.noradId)
@@ -172,6 +227,71 @@ export function App() {
 			}
 			return updated;
 		});
+
+		// 2. Persist to Cloudflare Workers KV
+		try {
+			await fetch("/api/satellites", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(newSat),
+			});
+		} catch (err) {
+			console.warn("Could not persist satellite to Cloudflare Workers KV:", err);
+		}
+	};
+
+	const handleDeleteSatellite = async (idOrNorad: string | number) => {
+		const targetStr = idOrNorad.toString();
+
+		// 1. Optimistic UI update
+		setSatellites((prev) => {
+			const updated = prev.filter((s) => s.id !== targetStr && s.noradId.toString() !== targetStr);
+			try {
+				const customOnly = updated.filter(
+					(s) => !defaultSatellitesJson.some((d) => d.id === s.id || d.noradId === s.noradId)
+				);
+				localStorage.setItem(STORAGE_KEY_SATELLITES, JSON.stringify(customOnly));
+			} catch {
+				// ignore
+			}
+			return updated;
+		});
+
+		// 2. Delete from Cloudflare Workers KV
+		try {
+			await fetch(`/api/satellites/${targetStr}`, {
+				method: "DELETE",
+			});
+		} catch (err) {
+			console.warn("Could not delete satellite from Cloudflare Workers KV:", err);
+		}
+	};
+
+	const handleResetFleet = async () => {
+		try {
+			const res = await fetch("/api/satellites/reset", { method: "POST" });
+			if (res.ok) {
+				const data = await res.json();
+				if (Array.isArray(data.satellites)) {
+					setSatellites(data.satellites);
+					try {
+						localStorage.removeItem(STORAGE_KEY_SATELLITES);
+					} catch {
+						// ignore
+					}
+					return;
+				}
+			}
+		} catch (err) {
+			console.warn("Reset via KV failed, resetting locally:", err);
+		}
+
+		setSatellites(defaultSatellitesJson as SatelliteInfo[]);
+		try {
+			localStorage.removeItem(STORAGE_KEY_SATELLITES);
+		} catch {
+			// ignore
+		}
 	};
 
 	const handleSelectPassForRadar = (pass: SatellitePass) => {
@@ -247,6 +367,8 @@ export function App() {
 						liveTelemetries={liveTelemetries}
 						location={location}
 						onOpenAddModal={() => setIsAddModalOpen(true)}
+						onDeleteSatellite={handleDeleteSatellite}
+						onResetFleet={handleResetFleet}
 					/>
 				)}
 			</main>
