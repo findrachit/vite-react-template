@@ -147,8 +147,7 @@ app.get("/api/", async (c) => {
 	return c.json({
 		status: "online",
 		service: "AstroPass Satellite Telemetry Engine",
-		storage: c.env.SATELLITES_KV ? "Cloudflare Workers KV" : "static-fallback",
-		accessControl: "Workers KV Auth Token",
+		accessControl: "Fleet Auth Token",
 		timestamp: new Date().toISOString(),
 		satelliteCount: sats.length,
 	});
@@ -158,8 +157,6 @@ app.get("/api/", async (c) => {
 app.get("/api/auth/status", async (c) => {
 	return c.json({
 		status: "active",
-		storage: c.env.SATELLITES_KV ? "Cloudflare Workers KV" : "static-fallback",
-		tokenKey: AUTH_TOKEN_KV_KEY,
 		authRequired: true,
 	});
 });
@@ -223,7 +220,7 @@ app.post("/api/auth/token", async (c) => {
 
 	return c.json({
 		success: true,
-		message: "Fleet access token updated successfully in Workers KV",
+		message: "Fleet access token updated successfully",
 	});
 });
 

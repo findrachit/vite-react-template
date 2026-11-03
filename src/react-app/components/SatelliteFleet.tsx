@@ -42,7 +42,7 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 				<div>
 					<h2 className="section-title">Tracked Satellite Fleet</h2>
 					<p className="section-subtitle">
-						Active orbital assets stored in Cloudflare Workers KV & monitored from Ground Station {location.name}.
+						Active orbital assets monitored from Ground Station {location.name}.
 					</p>
 				</div>
 				<div className="flex-align-gap">
@@ -77,11 +77,11 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 									}
 									return;
 								}
-								if (window.confirm("Reset fleet catalog back to default satellites in Cloudflare Workers KV?")) {
+								if (window.confirm("Reset fleet catalog back to default satellites?")) {
 									onResetFleet();
 								}
 							}}
-							title="Reset fleet in Cloudflare Workers KV"
+							title="Reset fleet catalog"
 						>
 							<RotateCcw size={15} />
 							<span>Reset Defaults</span>
@@ -93,7 +93,7 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 							if (!isAuthorized) {
 								if (
 									window.confirm(
-										"Adding satellites requires an Access Token to persist to Cloudflare Workers KV. Would you like to enter your access token first?"
+										"Adding satellites requires an Access Token. Would you like to enter your access token first?"
 									)
 								) {
 									onOpenAccessModal();
@@ -148,13 +148,13 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 									{onDeleteSatellite && (
 										<button
 											className="sat-delete-btn"
-											title={`Remove ${sat.displayName} from KV fleet`}
+											title={`Remove ${sat.displayName} from fleet`}
 											onClick={(e) => {
 												e.stopPropagation();
 												if (!isAuthorized) {
 													if (
 														window.confirm(
-															`Deleting ${sat.displayName} from Cloudflare Workers KV requires an Access Token. Would you like to enter your access token now?`
+															`Deleting ${sat.displayName} requires an Access Token. Would you like to enter your access token now?`
 														)
 													) {
 														onOpenAccessModal();

@@ -2816,38 +2816,6 @@ body {
 	color: var(--accent-cyan);
 }
 
-.kv-info-note {
-	display: flex;
-	align-items: flex-start;
-	gap: 10px;
-	background: rgba(56, 189, 248, 0.06);
-	border: 1px solid rgba(56, 189, 248, 0.2);
-	border-radius: 12px;
-	padding: 12px 14px;
-	margin: 16px 0;
-}
-
-.kv-note-title {
-	font-size: 0.8rem;
-	font-weight: 700;
-	color: var(--accent-cyan);
-	margin-bottom: 3px;
-}
-
-.kv-note-body {
-	font-size: 0.75rem;
-	color: var(--text-muted);
-	line-height: 1.45;
-}
-
-.kv-note-body code {
-	background: rgba(0, 0, 0, 0.3);
-	padding: 2px 5px;
-	border-radius: 4px;
-	font-family: var(--font-mono);
-	color: var(--accent-cyan);
-}
-
 .alert-text-group {
 	display: flex;
 	flex-direction: column;

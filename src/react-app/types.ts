@@ -93,8 +93,8 @@ export interface LiveTelemetry {
 
 export interface AuthStatusInfo {
 	status: string;
-	storage: string;
-	tokenKey: string;
 	authRequired: boolean;
+	storage?: string;
+	tokenKey?: string;
 }
 

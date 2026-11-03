@@ -12,7 +12,6 @@ import {
 	Share2,
 	RefreshCw,
 	LogOut,
-	Database,
 } from "lucide-react";
 
 interface FleetAccessModalProps {
@@ -75,7 +74,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 		} else {
 			setStatusMessage({
 				type: "error",
-				text: "Invalid access token. Please verify the token stored in Cloudflare Workers KV.",
+				text: "Invalid access token. Please verify the token and try again.",
 			});
 		}
 	};
@@ -130,12 +129,12 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 			setShowRotateForm(false);
 			setStatusMessage({
 				type: "success",
-				text: res.message || "Fleet token successfully updated in Cloudflare Workers KV!",
+				text: res.message || "Fleet access token successfully updated!",
 			});
 		} else {
 			setStatusMessage({
 				type: "error",
-				text: res.error || "Failed to update token in Workers KV.",
+				text: res.error || "Failed to update token.",
 			});
 		}
 	};
@@ -154,7 +153,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 							<h2 className="modal-title">Fleet Access Control</h2>
 							<div className="modal-subhead">
 								{isAuthorized
-									? "Authorized • Workers KV Access Gate"
+									? "Authorized • Full Fleet Management"
 									: "Read-Only Mode • Authentication Required"}
 							</div>
 						</div>
@@ -174,7 +173,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 									<span className="status-title-text">Full Fleet Management Authorized</span>
 								</div>
 								<p className="auth-desc-text">
-									Your browser holds an authenticated token stored in Cloudflare Workers KV.
+									Your browser is authenticated with a valid fleet access token.
 									You have permission to add, modify, and delete satellites from the live fleet.
 								</p>
 
@@ -254,7 +253,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 									onClick={() => setShowRotateForm(!showRotateForm)}
 								>
 									<RefreshCw size={14} />
-									<span>{showRotateForm ? "Cancel Token Update" : "Update Fleet Token in Workers KV"}</span>
+									<span>{showRotateForm ? "Cancel Token Update" : "Update Fleet Access Token"}</span>
 								</button>
 
 								{showRotateForm && (
@@ -276,7 +275,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 											disabled={isRotating}
 										>
 											<RefreshCw size={14} className={isRotating ? "spin" : ""} />
-											<span>{isRotating ? "Updating KV..." : "Save New Token to KV"}</span>
+											<span>{isRotating ? "Updating..." : "Save New Token"}</span>
 										</button>
 									</form>
 								)}
@@ -322,7 +321,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 						/* Unauthorized / Login Form */
 						<form onSubmit={handleAuthenticate} className="auth-form">
 							<p className="modal-desc">
-								Additions and deletions to the satellite fleet are access-controlled via Cloudflare Workers KV to prevent unauthorized public tampering while enabling controlled, shareable team access.
+								Additions and deletions to the satellite fleet are access-controlled to prevent unauthorized modifications while enabling controlled, shareable team access.
 							</p>
 
 							<div className="form-group">
@@ -362,17 +361,6 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 									<span>{statusMessage.text}</span>
 								</div>
 							)}
-
-							<div className="kv-info-note">
-								<Database size={15} className="icon-cyan" />
-								<div>
-									<div className="kv-note-title">Where is this stored?</div>
-									<div className="kv-note-body">
-										Stored in Cloudflare Workers KV namespace under key <code>satellites:auth_token</code>.
-										Default seed token: <code>astropass-fleet-token</code>.
-									</div>
-								</div>
-							</div>
 
 							<div className="modal-actions">
 								<button type="button" className="btn-secondary" onClick={onClose}>
