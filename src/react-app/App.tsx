@@ -189,18 +189,18 @@ export function App() {
 		};
 	}, []);
 
-	// Synchronize satellite fleet with Cloudflare Workers KV
+	// Synchronize satellite fleet with server storage
 	useEffect(() => {
 		let isMounted = true;
 
 		async function fetchFleetFromKV() {
 			try {
 				const res = await fetch("/api/satellites");
-				if (!res.ok) throw new Error("Failed to fetch fleet from KV");
+				if (!res.ok) throw new Error("Failed to fetch fleet");
 				const kvSats = (await res.json()) as SatelliteInfo[];
 				if (!isMounted || !Array.isArray(kvSats) || kvSats.length === 0) return;
 
-				// Check if there are local offline additions to sync to KV
+				// Check if there are local offline additions to sync to server
 				try {
 					const saved = localStorage.getItem(STORAGE_KEY_SATELLITES);
 					if (saved) {
@@ -209,7 +209,7 @@ export function App() {
 						const kvNorads = new Set(kvSats.map((s) => s.noradId));
 						const unsynced = custom.filter((s) => !kvIds.has(s.id) && !kvNorads.has(s.noradId));
 
-						// If user has a valid auth token, sync custom satellites to KV
+						// If user has a valid auth token, sync custom satellites to server
 						if (unsynced.length > 0 && authToken) {
 							for (const s of unsynced) {
 								await fetch("/api/satellites", {
@@ -386,7 +386,7 @@ export function App() {
 		});
 	};
 
-	// Rotate / Update token in Workers KV
+	// Rotate / Update token on server
 	const handleRotateToken = async (
 		newToken: string
 	): Promise<{ success: boolean; message?: string; error?: string }> => {
@@ -415,7 +415,7 @@ export function App() {
 				}
 				setToast({
 					type: "success",
-					message: "Fleet access token successfully updated in Cloudflare Workers KV!",
+					message: "Fleet access token successfully updated!",
 				});
 				return { success: true, message: data.message };
 			} else {
@@ -460,7 +460,7 @@ export function App() {
 
 			if (!res.ok) {
 				const errData = await res.json().catch(() => ({}));
-				throw new Error(errData.error || "Failed to save satellite to KV");
+				throw new Error(errData.error || "Failed to save satellite");
 			}
 
 			// Update state only on verified server success
@@ -482,7 +482,7 @@ export function App() {
 
 			setToast({
 				type: "success",
-				message: `Satellite ${newSat.displayName} added to fleet in Workers KV!`,
+				message: `Satellite ${newSat.displayName} added to fleet!`,
 			});
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : "Failed to persist satellite";
@@ -523,7 +523,7 @@ export function App() {
 
 			if (!res.ok) {
 				const errData = await res.json().catch(() => ({}));
-				throw new Error(errData.error || "Failed to delete satellite from KV");
+				throw new Error(errData.error || "Failed to delete satellite");
 			}
 
 			// Update state only on verified server success
@@ -542,7 +542,7 @@ export function App() {
 
 			setToast({
 				type: "success",
-				message: "Satellite removed from fleet in Workers KV.",
+				message: "Satellite removed from fleet.",
 			});
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : "Failed to delete satellite";
@@ -591,16 +591,16 @@ export function App() {
 					}
 					setToast({
 						type: "success",
-						message: "Fleet reset back to default catalog in Cloudflare Workers KV.",
+						message: "Fleet reset back to default catalog.",
 					});
 					return;
 				}
 			}
 		} catch (err) {
-			console.warn("Reset via KV failed:", err);
+			console.warn("Reset failed:", err);
 			setToast({
 				type: "error",
-				message: "Failed to reset fleet in Workers KV.",
+				message: "Failed to reset fleet.",
 			});
 		}
 	};

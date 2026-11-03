@@ -189,7 +189,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 						<div className="alert-box alert-warning">
 							<Lock size={15} />
 							<div className="alert-text-group">
-								<span>Fleet is in <strong>Read-Only</strong> mode. You will need a valid Workers KV token to save additions.</span>
+								<span>Fleet is in <strong>Read-Only</strong> mode. You will need a valid access token to save additions.</span>
 								{onOpenAccessModal && (
 									<button
 										type="button"
