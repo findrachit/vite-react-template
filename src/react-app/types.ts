@@ -90,3 +90,11 @@ export interface LiveTelemetry {
 	isSunlit: boolean;
 	sunElevationDeg: number;
 }
+
+export interface AuthStatusInfo {
+	status: string;
+	storage: string;
+	tokenKey: string;
+	authRequired: boolean;
+}
+

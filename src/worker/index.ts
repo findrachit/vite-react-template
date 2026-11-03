@@ -5,6 +5,8 @@ import defaultSatellites from "../data/satellites.json";
 const app = new Hono<{ Bindings: Env }>();
 
 const SATELLITES_KV_KEY = "satellites:list";
+const AUTH_TOKEN_KV_KEY = "satellites:auth_token";
+const DEFAULT_AUTH_TOKEN = "astropass-fleet-token";
 
 interface SatelliteRecord {
 	id: string;
@@ -30,6 +32,84 @@ interface SatelliteRecord {
 	}>;
 	description?: string;
 	icon?: string;
+}
+
+/**
+ * Retrieves the fleet auth token from Cloudflare Workers KV.
+ * If KV does not yet have a token set, it self-seeds with DEFAULT_AUTH_TOKEN.
+ */
+async function getFleetAuthToken(env: Env): Promise<string> {
+	if (!env.SATELLITES_KV) {
+		return ((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string) || DEFAULT_AUTH_TOKEN;
+	}
+
+	try {
+		const existingToken = await env.SATELLITES_KV.get(AUTH_TOKEN_KV_KEY);
+		if (existingToken && existingToken.trim().length > 0) {
+			return existingToken.trim();
+		}
+
+		// Self-seed KV with the default auth token so access control is active immediately
+		const initialToken =
+			((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string)?.trim() ||
+			DEFAULT_AUTH_TOKEN;
+		await env.SATELLITES_KV.put(AUTH_TOKEN_KV_KEY, initialToken);
+		return initialToken;
+	} catch (err) {
+		console.error("KV auth token read/seed error:", err);
+		return ((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string) || DEFAULT_AUTH_TOKEN;
+	}
+}
+
+/**
+ * Extracts candidate auth token from request headers or query params:
+ * - Authorization: Bearer <token>
+ * - X-Auth-Token: <token>
+ * - ?token=<token> or ?auth=<token>
+ */
+function extractToken(c: {
+	req: {
+		header: (name: string) => string | undefined;
+		query: (name: string) => string | undefined;
+	};
+}): string | null {
+	const authHeader = c.req.header("Authorization");
+	if (authHeader) {
+		const match = authHeader.match(/^Bearer\s+(.+)$/i);
+		if (match) return match[1].trim();
+		return authHeader.trim();
+	}
+
+	const xAuthToken = c.req.header("X-Auth-Token");
+	if (xAuthToken) {
+		return xAuthToken.trim();
+	}
+
+	const queryToken = c.req.query("token") || c.req.query("auth");
+	if (queryToken) {
+		return queryToken.trim();
+	}
+
+	return null;
+}
+
+/**
+ * Validates request token against the token stored in Cloudflare Workers KV.
+ */
+async function isAuthorized(
+	c: {
+		req: {
+			header: (name: string) => string | undefined;
+			query: (name: string) => string | undefined;
+		};
+		env: Env;
+	},
+	bodyToken?: string
+): Promise<boolean> {
+	const expected = await getFleetAuthToken(c.env);
+	const candidate = bodyToken?.trim() || extractToken(c);
+	if (!candidate) return false;
+	return candidate === expected;
 }
 
 /**
@@ -68,21 +148,106 @@ app.get("/api/", async (c) => {
 		status: "online",
 		service: "AstroPass Satellite Telemetry Engine",
 		storage: c.env.SATELLITES_KV ? "Cloudflare Workers KV" : "static-fallback",
+		accessControl: "Workers KV Auth Token",
 		timestamp: new Date().toISOString(),
 		satelliteCount: sats.length,
 	});
 });
 
-// Get configured satellites list from KV
+// Access control status
+app.get("/api/auth/status", async (c) => {
+	return c.json({
+		status: "active",
+		storage: c.env.SATELLITES_KV ? "Cloudflare Workers KV" : "static-fallback",
+		tokenKey: AUTH_TOKEN_KV_KEY,
+		authRequired: true,
+	});
+});
+
+// Verify if a token is valid
+app.post("/api/auth/verify", async (c) => {
+	let bodyToken: string | undefined;
+	try {
+		const body = await c.req.json();
+		if (body && typeof body.token === "string") {
+			bodyToken = body.token;
+		}
+	} catch {
+		// body may be empty or not json, which is fine if token is in header or query
+	}
+
+	const authorized = await isAuthorized(c, bodyToken);
+	if (!authorized) {
+		return c.json(
+			{
+				valid: false,
+				error: "Invalid or missing access token",
+			},
+			401
+		);
+	}
+
+	return c.json({
+		valid: true,
+		message: "Fleet access token verified",
+	});
+});
+
+// Update / rotate fleet token in KV (requires current valid token)
+app.post("/api/auth/token", async (c) => {
+	let body: { currentToken?: string; newToken?: string } = {};
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "Invalid JSON body" }, 400);
+	}
+
+	const authorized = await isAuthorized(c, body.currentToken);
+	if (!authorized) {
+		return c.json(
+			{
+				error: "Unauthorized: Current valid access token is required to update the token",
+			},
+			401
+		);
+	}
+
+	if (!body.newToken || typeof body.newToken !== "string" || body.newToken.trim().length < 6) {
+		return c.json({ error: "New token must be at least 6 characters long" }, 400);
+	}
+
+	const newToken = body.newToken.trim();
+	if (c.env.SATELLITES_KV) {
+		await c.env.SATELLITES_KV.put(AUTH_TOKEN_KV_KEY, newToken);
+	}
+
+	return c.json({
+		success: true,
+		message: "Fleet access token updated successfully in Workers KV",
+	});
+});
+
+// Get configured satellites list from KV (public read-only)
 app.get("/api/satellites", async (c) => {
 	const sats = await getSatellitesFleet(c.env);
 	return c.json(sats);
 });
 
-// Add or update satellite in KV
+// Add or update satellite in KV (access-controlled)
 app.post("/api/satellites", async (c) => {
 	try {
 		const body = await c.req.json();
+		const authorized = await isAuthorized(c, body?.token);
+		if (!authorized) {
+			return c.json(
+				{
+					error: "Unauthorized: Valid access token required to add or modify satellites in the fleet",
+					authRequired: true,
+				},
+				401
+			);
+		}
+
 		if (!body || !body.noradId || !body.tleLine1 || !body.tleLine2) {
 			return c.json({ error: "Missing required fields (noradId, tleLine1, tleLine2)" }, 400);
 		}
@@ -136,8 +301,19 @@ app.post("/api/satellites", async (c) => {
 	}
 });
 
-// Delete satellite from KV
+// Delete satellite from KV (access-controlled)
 app.delete("/api/satellites/:idOrNorad", async (c) => {
+	const authorized = await isAuthorized(c);
+	if (!authorized) {
+		return c.json(
+			{
+				error: "Unauthorized: Valid access token required to delete satellites from the fleet",
+				authRequired: true,
+			},
+			401
+		);
+	}
+
 	const param = c.req.param("idOrNorad");
 	try {
 		const currentFleet = await getSatellitesFleet(c.env);
@@ -160,8 +336,29 @@ app.delete("/api/satellites/:idOrNorad", async (c) => {
 	}
 });
 
-// Reset KV back to default initial seed
+// Reset KV back to default initial seed (access-controlled)
 app.post("/api/satellites/reset", async (c) => {
+	let bodyToken: string | undefined;
+	try {
+		const body = await c.req.json();
+		if (body && typeof body.token === "string") {
+			bodyToken = body.token;
+		}
+	} catch {
+		// ignore
+	}
+
+	const authorized = await isAuthorized(c, bodyToken);
+	if (!authorized) {
+		return c.json(
+			{
+				error: "Unauthorized: Valid access token required to reset the satellite fleet",
+				authRequired: true,
+			},
+			401
+		);
+	}
+
 	try {
 		if (c.env.SATELLITES_KV) {
 			await c.env.SATELLITES_KV.put(SATELLITES_KV_KEY, JSON.stringify(defaultSatellites));

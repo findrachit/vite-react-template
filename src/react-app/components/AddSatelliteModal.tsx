@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { X, Plus, Search, Satellite, Sparkles, Check, AlertCircle } from "lucide-react";
+import { X, Plus, Search, Satellite, Sparkles, Check, AlertCircle, Lock } from "lucide-react";
 import type { SatelliteInfo } from "../types";
 
 interface AddSatelliteModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onAddSatellite: (sat: SatelliteInfo) => void;
+	isAuthorized?: boolean;
+	onOpenAccessModal?: () => void;
 }
 
 const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; name: string }> = [
@@ -87,6 +89,8 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 	isOpen,
 	onClose,
 	onAddSatellite,
+	isAuthorized = false,
+	onOpenAccessModal,
 }) => {
 	const [noradInput, setNoradInput] = useState("");
 	const [nameInput, setNameInput] = useState("");
@@ -181,6 +185,27 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 				</div>
 
 				<div className="modal-body">
+					{!isAuthorized && (
+						<div className="alert-box alert-warning">
+							<Lock size={15} />
+							<div className="alert-text-group">
+								<span>Fleet is in <strong>Read-Only</strong> mode. You will need a valid Workers KV token to save additions.</span>
+								{onOpenAccessModal && (
+									<button
+										type="button"
+										className="btn-link-action"
+										onClick={() => {
+											onClose();
+											onOpenAccessModal();
+										}}
+									>
+										Enter Token Now
+									</button>
+								)}
+							</div>
+						</div>
+					)}
+
 					<p className="modal-desc">
 						Enter any NORAD Catalog ID to auto-fetch the latest Two-Line Element (TLE) from CelesTrak, or choose from popular spacecraft below.
 					</p>

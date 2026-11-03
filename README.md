@@ -18,6 +18,31 @@ A modern space-themed satellite pass predictor built with **React 19**, **Vite 7
 - 🎯 **Interactive Polar Sky Radar**: Local horizon sky dome showing trajectory arcs, AOS/LOS points, live satellite positions, and flight path simulation.
 - 📡 **Live Telemetry & Fleet Specs**: Real-time altitude, velocity, sub-satellite coordinates, downlink frequencies (e.g. 145.800 MHz FM / 437.350 MHz SSTV), and Two-Line Element (TLE) inspection.
 - ➕ **Dynamic Satellite Tracker**: Search and track any satellite by NORAD catalog ID with live TLE lookup from CelesTrak.
+- 🔐 **Access-Controlled Fleet Management**:
+  - Additions and deletions to the satellite fleet are access-controlled via a token stored in **Cloudflare Workers KV** (`satellites:auth_token`).
+  - Protects against unauthorized public modifications on the internet while enabling controlled, shareable team access.
+  - Generates 1-click shareable URLs (`?token=<token>`) for collaborators.
+  - In-browser verification, token masking, logout, and token rotation directly into Workers KV.
+
+## 🔐 Fleet Access Control (Workers KV)
+
+Modifications to the orbital fleet (`POST /api/satellites`, `DELETE /api/satellites/:id`, and `POST /api/satellites/reset`) require a valid access token stored in Cloudflare Workers KV:
+
+- **KV Namespace Binding**: `SATELLITES_KV`
+- **KV Token Key**: `satellites:auth_token`
+- **Default Seed Token**: `astropass-fleet-token` (automatically seeded on initial access if not already present)
+
+### Ways to Authenticate:
+1. **Shareable URL**: Open the application with `?token=<your-token>` (e.g. `https://your-domain.workers.dev/?token=astropass-fleet-token`). The app validates the token, securely saves it to browser storage, and cleans the URL parameter.
+2. **UI Access Control Modal**: Click **"Read-Only"** or **"Fleet Access"** in the navigation header or fleet view to enter/manage the token.
+3. **API Headers**: Send requests with `Authorization: Bearer <token>` or `X-Auth-Token: <token>`.
+
+### Setting or Rotating the Token in Cloudflare KV:
+- **Via Wrangler CLI**:
+  ```bash
+  npx wrangler kv key put --binding SATELLITES_KV "satellites:auth_token" "your-secret-key"
+  ```
+- **Via the UI**: Open the Fleet Access modal while authorized and expand **"Update Fleet Token in Workers KV"**.
 
 ## 🛰️ Tracked Satellites List (`satellites.json`)
 
