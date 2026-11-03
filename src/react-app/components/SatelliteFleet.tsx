@@ -7,6 +7,8 @@ import {
 	Plus,
 	Trash2,
 	RotateCcw,
+	ShieldCheck,
+	Lock,
 } from "lucide-react";
 import type { SatelliteInfo, LiveTelemetry, ObserverLocation } from "../types";
 import { getSatelliteTransmissions } from "../utils/satelliteTracker";
@@ -18,6 +20,8 @@ interface SatelliteFleetProps {
 	onOpenAddModal: () => void;
 	onDeleteSatellite?: (idOrNorad: string | number) => void;
 	onResetFleet?: () => void;
+	isAuthorized: boolean;
+	onOpenAccessModal: () => void;
 }
 
 export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
@@ -27,6 +31,8 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 	onOpenAddModal,
 	onDeleteSatellite,
 	onResetFleet,
+	isAuthorized,
+	onOpenAccessModal,
 }) => {
 	const [expandedTleId, setExpandedTleId] = useState<string | null>(null);
 
@@ -40,10 +46,37 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 					</p>
 				</div>
 				<div className="flex-align-gap">
+					<button
+						className={`fleet-access-pill ${isAuthorized ? "pill-authorized" : "pill-locked"}`}
+						onClick={onOpenAccessModal}
+						title={
+							isAuthorized
+								? "Fleet Access: Active (Full management rights)"
+								: "Fleet Access: Locked (Read-Only) — Click to authenticate"
+						}
+					>
+						{isAuthorized ? (
+							<ShieldCheck size={14} className="text-emerald" />
+						) : (
+							<Lock size={14} className="text-muted" />
+						)}
+						<span>{isAuthorized ? "Fleet Access: Active" : "Read-Only (Unlock)"}</span>
+					</button>
+
 					{onResetFleet && (
 						<button
 							className="btn-secondary"
 							onClick={() => {
+								if (!isAuthorized) {
+									if (
+										window.confirm(
+											"Resetting the fleet requires an Access Token. Would you like to enter your access token now?"
+										)
+									) {
+										onOpenAccessModal();
+									}
+									return;
+								}
 								if (window.confirm("Reset fleet catalog back to default satellites in Cloudflare Workers KV?")) {
 									onResetFleet();
 								}
@@ -54,7 +87,22 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 							<span>Reset Defaults</span>
 						</button>
 					)}
-					<button className="btn-accent" onClick={onOpenAddModal}>
+					<button
+						className="btn-accent"
+						onClick={() => {
+							if (!isAuthorized) {
+								if (
+									window.confirm(
+										"Adding satellites requires an Access Token to persist to Cloudflare Workers KV. Would you like to enter your access token first?"
+									)
+								) {
+									onOpenAccessModal();
+									return;
+								}
+							}
+							onOpenAddModal();
+						}}
+					>
 						<Plus size={16} />
 						<span>Add Satellite to Fleet</span>
 					</button>
@@ -103,6 +151,16 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 											title={`Remove ${sat.displayName} from KV fleet`}
 											onClick={(e) => {
 												e.stopPropagation();
+												if (!isAuthorized) {
+													if (
+														window.confirm(
+															`Deleting ${sat.displayName} from Cloudflare Workers KV requires an Access Token. Would you like to enter your access token now?`
+														)
+													) {
+														onOpenAccessModal();
+													}
+													return;
+												}
 												if (window.confirm(`Remove ${sat.displayName} (NORAD #${sat.noradId}) from fleet?`)) {
 													onDeleteSatellite(sat.id || sat.noradId);
 												}

@@ -8,6 +8,8 @@ import {
 	Radar,
 	Layers,
 	RefreshCw,
+	ShieldCheck,
+	Lock,
 } from "lucide-react";
 import type { ObserverLocation } from "../types";
 
@@ -21,6 +23,8 @@ interface HeaderProps {
 	passCount: number;
 	onRefresh: () => void;
 	isRefreshing: boolean;
+	isAuthorized: boolean;
+	onOpenAccessModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
 	passCount,
 	onRefresh,
 	isRefreshing,
+	isAuthorized,
+	onOpenAccessModal,
 }) => {
 	const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -108,6 +114,23 @@ export const Header: React.FC<HeaderProps> = ({
 
 				{/* Actions */}
 				<div className="header-actions">
+					<button
+						className={`access-badge-btn ${isAuthorized ? "authorized" : "locked"}`}
+						onClick={onOpenAccessModal}
+						title={
+							isAuthorized
+								? "Fleet Access: Active (Click to share, view, or manage access token)"
+								: "Fleet Access: Locked (Read-Only) — Click to enter access token"
+						}
+					>
+						{isAuthorized ? (
+							<ShieldCheck size={15} className="text-emerald" />
+						) : (
+							<Lock size={15} className="text-muted" />
+						)}
+						<span>{isAuthorized ? "Fleet Access" : "Read-Only"}</span>
+					</button>
+
 					<button
 						className={`refresh-btn ${isRefreshing ? "spin" : ""}`}
 						onClick={onRefresh}
