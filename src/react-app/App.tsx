@@ -386,47 +386,6 @@ export function App() {
 		});
 	};
 
-	// Rotate / Update token on server
-	const handleRotateToken = async (
-		newToken: string
-	): Promise<{ success: boolean; message?: string; error?: string }> => {
-		try {
-			const res = await fetch("/api/auth/token", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${authToken}`,
-				},
-				body: JSON.stringify({
-					currentToken: authToken,
-					newToken,
-				}),
-			});
-
-			const data = await res.json().catch(() => ({}));
-
-			if (res.ok) {
-				setAuthToken(newToken);
-				setIsAuthorized(true);
-				try {
-					localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, newToken);
-				} catch {
-					// ignore
-				}
-				setToast({
-					type: "success",
-					message: "Fleet access token successfully updated!",
-				});
-				return { success: true, message: data.message };
-			} else {
-				return { success: false, error: data.error || "Failed to update token" };
-			}
-		} catch (err: unknown) {
-			const msg = err instanceof Error ? err.message : "Network error";
-			return { success: false, error: msg };
-		}
-	};
-
 	// Add satellite with access-control check
 	const handleAddSatellite = async (newSat: SatelliteInfo) => {
 		if (!isAuthorized && !authToken) {
@@ -728,7 +687,6 @@ export function App() {
 				isAuthorized={isAuthorized}
 				onSaveToken={handleSaveToken}
 				onClearToken={handleClearToken}
-				onRotateToken={handleRotateToken}
 			/>
 		</div>
 	);

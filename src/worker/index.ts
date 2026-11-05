@@ -6,7 +6,26 @@ const app = new Hono<{ Bindings: Env }>();
 
 const SATELLITES_KV_KEY = "satellites:list";
 const AUTH_TOKEN_KV_KEY = "satellites:auth_token";
-const DEFAULT_AUTH_TOKEN = "astropass-fleet-token";
+
+/**
+ * Constant-time string equality check to prevent timing attacks.
+ * Compares SHA-256 digests over fixed 32-byte buffers.
+ */
+async function timingSafeEqual(candidate: string, expected: string): Promise<boolean> {
+	const enc = new TextEncoder();
+	const [candDigest, expDigest] = await Promise.all([
+		crypto.subtle.digest("SHA-256", enc.encode(candidate)),
+		crypto.subtle.digest("SHA-256", enc.encode(expected)),
+	]);
+
+	const a = new Uint8Array(candDigest);
+	const b = new Uint8Array(expDigest);
+	let mismatch = 0;
+	for (let i = 0; i < a.byteLength; i++) {
+		mismatch |= a[i] ^ b[i];
+	}
+	return mismatch === 0;
+}
 
 interface SatelliteRecord {
 	id: string;
@@ -35,30 +54,27 @@ interface SatelliteRecord {
 }
 
 /**
- * Retrieves the fleet auth token from Cloudflare Workers KV.
- * If KV does not yet have a token set, it self-seeds with DEFAULT_AUTH_TOKEN.
+ * Retrieves the fleet auth token from Cloudflare Workers KV or environment bindings.
+ * Fails closed (returns null) if no token is configured.
  */
-async function getFleetAuthToken(env: Env): Promise<string> {
-	if (!env.SATELLITES_KV) {
-		return ((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string) || DEFAULT_AUTH_TOKEN;
-	}
-
-	try {
-		const existingToken = await env.SATELLITES_KV.get(AUTH_TOKEN_KV_KEY);
-		if (existingToken && existingToken.trim().length > 0) {
-			return existingToken.trim();
+async function getFleetAuthToken(env: Env): Promise<string | null> {
+	if (env.SATELLITES_KV) {
+		try {
+			const existingToken = await env.SATELLITES_KV.get(AUTH_TOKEN_KV_KEY);
+			if (existingToken && existingToken.trim().length > 0) {
+				return existingToken.trim();
+			}
+		} catch (err) {
+			console.error("KV auth token read error:", err);
 		}
-
-		// Self-seed KV with the default auth token so access control is active immediately
-		const initialToken =
-			((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string)?.trim() ||
-			DEFAULT_AUTH_TOKEN;
-		await env.SATELLITES_KV.put(AUTH_TOKEN_KV_KEY, initialToken);
-		return initialToken;
-	} catch (err) {
-		console.error("KV auth token read/seed error:", err);
-		return ((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string) || DEFAULT_AUTH_TOKEN;
 	}
+
+	const envToken = ((env as unknown as Record<string, unknown>).FLEET_AUTH_TOKEN as string | undefined)?.trim();
+	if (envToken && envToken.length > 0) {
+		return envToken;
+	}
+
+	return null;
 }
 
 /**
@@ -94,7 +110,8 @@ function extractToken(c: {
 }
 
 /**
- * Validates request token against the token stored in Cloudflare Workers KV.
+ * Validates request token against the token stored in Cloudflare Workers KV or environment.
+ * Performs constant-time comparison to prevent timing side channels.
  */
 async function isAuthorized(
 	c: {
@@ -107,9 +124,13 @@ async function isAuthorized(
 	bodyToken?: string
 ): Promise<boolean> {
 	const expected = await getFleetAuthToken(c.env);
+	if (!expected) {
+		// Fail closed: No valid access token configured
+		return false;
+	}
 	const candidate = bodyToken?.trim() || extractToken(c);
 	if (!candidate) return false;
-	return candidate === expected;
+	return timingSafeEqual(candidate, expected);
 }
 
 /**
@@ -155,8 +176,9 @@ app.get("/api/", async (c) => {
 
 // Access control status
 app.get("/api/auth/status", async (c) => {
+	const token = await getFleetAuthToken(c.env);
 	return c.json({
-		status: "active",
+		status: token ? "active" : "unconfigured",
 		authRequired: true,
 	});
 });
@@ -187,40 +209,6 @@ app.post("/api/auth/verify", async (c) => {
 	return c.json({
 		valid: true,
 		message: "Fleet access token verified",
-	});
-});
-
-// Update / rotate fleet token in KV (requires current valid token)
-app.post("/api/auth/token", async (c) => {
-	let body: { currentToken?: string; newToken?: string } = {};
-	try {
-		body = await c.req.json();
-	} catch {
-		return c.json({ error: "Invalid JSON body" }, 400);
-	}
-
-	const authorized = await isAuthorized(c, body.currentToken);
-	if (!authorized) {
-		return c.json(
-			{
-				error: "Unauthorized: Current valid access token is required to update the token",
-			},
-			401
-		);
-	}
-
-	if (!body.newToken || typeof body.newToken !== "string" || body.newToken.trim().length < 6) {
-		return c.json({ error: "New token must be at least 6 characters long" }, 400);
-	}
-
-	const newToken = body.newToken.trim();
-	if (c.env.SATELLITES_KV) {
-		await c.env.SATELLITES_KV.put(AUTH_TOKEN_KV_KEY, newToken);
-	}
-
-	return c.json({
-		success: true,
-		message: "Fleet access token updated successfully",
 	});
 });
 
