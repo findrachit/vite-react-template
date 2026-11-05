@@ -9,7 +9,6 @@ import {
 	Copy,
 	Check,
 	AlertCircle,
-	Share2,
 	LogOut,
 } from "lucide-react";
 
@@ -38,8 +37,6 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 		text: string;
 	} | null>(null);
 
-	// Share link state
-	const [copiedShareLink, setCopiedShareLink] = useState(false);
 	const [copiedToken, setCopiedToken] = useState(false);
 
 	if (!isOpen) return null;
@@ -68,23 +65,6 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 				type: "error",
 				text: "Invalid access token. Please verify the token and try again.",
 			});
-		}
-	};
-
-	const getShareableUrl = () => {
-		if (typeof window === "undefined") return "";
-		const currentOrigin = window.location.origin;
-		const pathname = window.location.pathname;
-		return `${currentOrigin}${pathname}?token=${encodeURIComponent(authToken)}`;
-	};
-
-	const handleCopyShareLink = async () => {
-		try {
-			await navigator.clipboard.writeText(getShareableUrl());
-			setCopiedShareLink(true);
-			setTimeout(() => setCopiedShareLink(false), 2500);
-		} catch {
-			// fallback
 		}
 	};
 
@@ -167,49 +147,12 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 								</div>
 							</div>
 
-							{/* Controlled & Shareable Access Link Section */}
-							<div className="shareable-section">
-								<div className="section-label">
-									<Share2 size={15} className="icon-cyan" />
-									<span>Shareable Access Link</span>
-								</div>
-								<p className="share-desc">
-									Share this URL with trusted teammates or ground station operators to grant them instant access to manage the satellite fleet.
-								</p>
-								<div className="share-link-box">
-									<input
-										type="text"
-										readOnly
-										value={getShareableUrl()}
-										className="input-field font-mono text-sm"
-										onClick={(e) => (e.target as HTMLInputElement).select()}
-									/>
-									<button
-										type="button"
-										className="btn-accent btn-copy-link"
-										onClick={handleCopyShareLink}
-									>
-										{copiedShareLink ? (
-											<>
-												<Check size={14} />
-												<span>Copied!</span>
-											</>
-										) : (
-											<>
-												<Copy size={14} />
-												<span>Copy Link</span>
-											</>
-										)}
-									</button>
-								</div>
-							</div>
-
 							{/* Token Management Info */}
 							<div className="rotate-section">
 								<div className="token-manage-note">
 									<ShieldCheck size={14} className="icon-cyan" />
 									<span>
-										Fleet access credentials and rotation are managed securely via the Cloudflare dashboard.
+										To grant access to teammates, share the access token securely offline. Fleet credentials and rotation are managed via the Cloudflare dashboard.
 									</span>
 								</div>
 							</div>
@@ -254,7 +197,7 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 						/* Unauthorized / Login Form */
 						<form onSubmit={handleAuthenticate} className="auth-form">
 							<p className="modal-desc">
-								Additions and deletions to the satellite fleet are access-controlled to prevent unauthorized modifications while enabling controlled, shareable team access.
+								Additions and deletions to the satellite fleet are access-controlled to prevent unauthorized modifications while enabling secure team management.
 							</p>
 
 							<div className="form-group">

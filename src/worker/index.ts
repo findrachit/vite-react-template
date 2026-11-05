@@ -6,7 +6,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 const SATELLITES_KV_KEY = "satellites:list";
 const AUTH_TOKEN_KV_KEY = "satellites:auth_token";
-const MAX_FLEET_SIZE = 200;
+const MAX_FLEET_SIZE = 30;
 
 const DEFAULT_SATELLITE_NORAD_IDS = new Set(defaultSatellites.map((s) => s.noradId));
 const DEFAULT_SATELLITE_IDS = new Set(defaultSatellites.map((s) => s.id));
@@ -267,15 +267,15 @@ async function getFleetAuthToken(env: Env): Promise<string | null> {
 }
 
 /**
- * Extracts candidate auth token from request headers or query params:
+ * Extracts candidate auth token from request headers:
  * - Authorization: Bearer <token>
  * - X-Auth-Token: <token>
- * - ?token=<token> or ?auth=<token>
+ *
+ * Query parameters and request bodies are rejected to prevent credential leakage (VULN-07).
  */
 function extractToken(c: {
 	req: {
 		header: (name: string) => string | undefined;
-		query: (name: string) => string | undefined;
 	};
 }): string | null {
 	const authHeader = c.req.header("Authorization");
@@ -290,11 +290,6 @@ function extractToken(c: {
 		return xAuthToken.trim();
 	}
 
-	const queryToken = c.req.query("token") || c.req.query("auth");
-	if (queryToken) {
-		return queryToken.trim();
-	}
-
 	return null;
 }
 
@@ -306,18 +301,16 @@ async function isAuthorized(
 	c: {
 		req: {
 			header: (name: string) => string | undefined;
-			query: (name: string) => string | undefined;
 		};
 		env: Env;
-	},
-	bodyToken?: string
+	}
 ): Promise<boolean> {
 	const expected = await getFleetAuthToken(c.env);
 	if (!expected) {
 		// Fail closed: No valid access token configured
 		return false;
 	}
-	const candidate = bodyToken?.trim() || extractToken(c);
+	const candidate = extractToken(c);
 	if (!candidate) return false;
 	return timingSafeEqual(candidate, expected);
 }
@@ -374,17 +367,7 @@ app.get("/api/auth/status", async (c) => {
 
 // Verify if a token is valid
 app.post("/api/auth/verify", async (c) => {
-	let bodyToken: string | undefined;
-	try {
-		const body = await c.req.json();
-		if (body && typeof body.token === "string") {
-			bodyToken = body.token;
-		}
-	} catch {
-		// body may be empty or not json, which is fine if token is in header or query
-	}
-
-	const authorized = await isAuthorized(c, bodyToken);
+	const authorized = await isAuthorized(c);
 	if (!authorized) {
 		return c.json(
 			{
@@ -410,18 +393,7 @@ app.get("/api/satellites", async (c) => {
 // Add or update satellite in KV (access-controlled)
 app.post("/api/satellites", async (c) => {
 	try {
-		let body: unknown;
-		try {
-			body = await c.req.json();
-		} catch {
-			return c.json({ error: "Invalid JSON payload" }, 400);
-		}
-
-		const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-		const authorized = await isAuthorized(
-			c,
-			typeof bodyObj.token === "string" ? bodyObj.token : undefined
-		);
+		const authorized = await isAuthorized(c);
 		if (!authorized) {
 			return c.json(
 				{
@@ -430,6 +402,13 @@ app.post("/api/satellites", async (c) => {
 				},
 				401
 			);
+		}
+
+		let body: unknown;
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON payload" }, 400);
 		}
 
 		const validation = sanitizeAndValidateSatelliteInput(body);
@@ -536,17 +515,7 @@ app.delete("/api/satellites/:idOrNorad", async (c) => {
 
 // Reset KV back to default initial seed (access-controlled)
 app.post("/api/satellites/reset", async (c) => {
-	let bodyToken: string | undefined;
-	try {
-		const body = await c.req.json();
-		if (body && typeof body.token === "string") {
-			bodyToken = body.token;
-		}
-	} catch {
-		// ignore
-	}
-
-	const authorized = await isAuthorized(c, bodyToken);
+	const authorized = await isAuthorized(c);
 	if (!authorized) {
 		return c.json(
 			{

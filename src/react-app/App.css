@@ -2698,33 +2698,6 @@ body {
 	background: rgba(56, 189, 248, 0.1);
 }
 
-/* Shareable Link Section */
-.shareable-section {
-	background: rgba(15, 23, 42, 0.5);
-	border: 1px solid var(--border-subtle);
-	border-radius: 14px;
-	padding: 16px;
-}
-
-.share-desc {
-	font-size: 0.78rem;
-	color: var(--text-muted);
-	line-height: 1.45;
-	margin: 6px 0 12px 0;
-}
-
-.share-link-box {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-}
-
-.btn-copy-link {
-	white-space: nowrap;
-	padding: 10px 14px;
-	font-size: 0.8rem;
-}
-
 /* Token Management Section */
 .rotate-section {
 	border-top: 1px solid rgba(255, 255, 255, 0.08);
