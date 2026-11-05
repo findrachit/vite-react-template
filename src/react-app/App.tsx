@@ -90,34 +90,17 @@ export function App() {
 		return () => clearTimeout(timer);
 	}, [toast]);
 
-	// Initialize and verify authentication (detect shareable link ?token=... or load from localStorage)
+	// Initialize and verify authentication from localStorage
 	useEffect(() => {
 		let isMounted = true;
 
 		async function initAuth() {
 			let candidateToken = "";
-			let fromUrl = false;
 
-			if (typeof window !== "undefined") {
-				try {
-					const params = new URLSearchParams(window.location.search);
-					const queryToken =
-						params.get("token") || params.get("auth") || params.get("access_token");
-					if (queryToken && queryToken.trim().length > 0) {
-						candidateToken = queryToken.trim();
-						fromUrl = true;
-					}
-				} catch {
-					// ignore search params parse error
-				}
-			}
-
-			if (!candidateToken) {
-				try {
-					candidateToken = localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) || "";
-				} catch {
-					// ignore
-				}
+			try {
+				candidateToken = localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) || "";
+			} catch {
+				// ignore
 			}
 
 			if (!candidateToken) {
@@ -129,10 +112,8 @@ export function App() {
 				const res = await fetch("/api/auth/verify", {
 					method: "POST",
 					headers: {
-						"Content-Type": "application/json",
 						Authorization: `Bearer ${candidateToken}`,
 					},
-					body: JSON.stringify({ token: candidateToken }),
 				});
 
 				if (!isMounted) return;
@@ -140,41 +121,8 @@ export function App() {
 				if (res.ok) {
 					setAuthToken(candidateToken);
 					setIsAuthorized(true);
-					try {
-						localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, candidateToken);
-					} catch {
-						// ignore
-					}
-
-					if (fromUrl) {
-						// Clean query parameters from address bar
-						try {
-							const params = new URLSearchParams(window.location.search);
-							params.delete("token");
-							params.delete("auth");
-							params.delete("access_token");
-							const newSearch = params.toString() ? `?${params.toString()}` : "";
-							window.history.replaceState(
-								{},
-								document.title,
-								window.location.pathname + newSearch
-							);
-						} catch {
-							// ignore
-						}
-						setToast({
-							type: "success",
-							message: "Fleet Access Granted! Authenticated via shareable token link.",
-						});
-					}
 				} else {
 					setIsAuthorized(false);
-					if (fromUrl) {
-						setToast({
-							type: "error",
-							message: "The shared access token is invalid or has been rotated.",
-						});
-					}
 				}
 			} catch (err) {
 				console.warn("Auth check error:", err);
@@ -345,10 +293,8 @@ export function App() {
 			const res = await fetch("/api/auth/verify", {
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
 					Authorization: `Bearer ${candidate}`,
 				},
-				body: JSON.stringify({ token: candidate }),
 			});
 
 			if (res.ok) {

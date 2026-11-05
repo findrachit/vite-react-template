@@ -119,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
 						onClick={onOpenAccessModal}
 						title={
 							isAuthorized
-								? "Fleet Access: Active (Click to share, view, or manage access token)"
+								? "Fleet Access: Active (Click to view or manage access token)"
 								: "Fleet Access: Locked (Read-Only) — Click to enter access token"
 						}
 					>

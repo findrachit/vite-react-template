@@ -20,22 +20,21 @@ A modern space-themed satellite pass predictor built with **React 19**, **Vite 7
 - ➕ **Dynamic Satellite Tracker**: Search and track any satellite by NORAD catalog ID with live TLE lookup from CelesTrak.
 - 🔐 **Access-Controlled Fleet Management**:
   - Additions and deletions to the satellite fleet are access-controlled via a token stored in **Cloudflare Workers KV** (`satellites:auth_token`) or environment secret (`FLEET_AUTH_TOKEN`).
-  - Protects against unauthorized public modifications on the internet while enabling controlled, shareable team access.
-  - Generates 1-click shareable URLs (`?token=<token>`) for collaborators.
+  - Protects against unauthorized public modifications on the internet while enabling secure team access.
   - In-browser verification, token masking, and logout.
+  - Maximum fleet capacity is capped at 30 satellites.
 
 ## 🔐 Fleet Access Control (Workers KV)
 
-Modifications to the orbital fleet (`POST /api/satellites`, `DELETE /api/satellites/:id`, and `POST /api/satellites/reset`) require a valid access token stored in Cloudflare Workers KV or environment secret:
+Modifications to the orbital fleet (`POST /api/satellites`, `DELETE /api/satellites/:id`, and `POST /api/satellites/reset`) require a valid access token stored in Cloudflare Workers KV or environment secret (maximum fleet limit: 30 satellites):
 
 - **KV Namespace Binding**: `SATELLITES_KV`
 - **KV Token Key**: `satellites:auth_token`
 - **Environment Secret**: `FLEET_AUTH_TOKEN`
 
 ### Ways to Authenticate:
-1. **Shareable URL**: Open the application with `?token=<your-token>` (e.g. `https://your-domain.workers.dev/?token=your-token`). The app validates the token, securely saves it to browser storage, and cleans the URL parameter.
-2. **UI Access Control Modal**: Click **"Read-Only"** or **"Fleet Access"** in the navigation header or fleet view to enter/manage the token.
-3. **API Headers**: Send requests with `Authorization: Bearer <token>` or `X-Auth-Token: <token>`.
+1. **UI Access Control Modal**: Click **"Read-Only"** or **"Fleet Access"** in the navigation header or fleet view to enter/manage the token. Tokens are shared securely offline and saved to browser storage.
+2. **API Headers**: Send requests with `Authorization: Bearer <token>` or `X-Auth-Token: <token>`. Query parameter authentication is rejected to prevent credential leakage.
 
 ### Setting or Rotating the Token in Cloudflare KV:
 - **Via Cloudflare Dashboard**:
