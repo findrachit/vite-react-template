@@ -2725,39 +2725,23 @@ body {
 	font-size: 0.8rem;
 }
 
-/* Token Rotation Section */
+/* Token Management Section */
 .rotate-section {
 	border-top: 1px solid rgba(255, 255, 255, 0.08);
 	padding-top: 14px;
 }
 
-.btn-text-toggle {
-	background: transparent;
-	border: none;
-	color: var(--accent-cyan);
-	font-size: 0.8rem;
-	cursor: pointer;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 0;
-	transition: all 0.2s;
-}
-
-.btn-text-toggle:hover {
-	color: #7dd3fc;
-	text-decoration: underline;
-}
-
-.rotate-form {
-	margin-top: 14px;
-	padding: 14px;
-	background: rgba(15, 23, 42, 0.6);
-	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 12px;
+.token-manage-note {
 	display: flex;
-	flex-direction: column;
-	gap: 12px;
+	align-items: center;
+	gap: 10px;
+	font-size: 0.78rem;
+	color: var(--text-muted);
+	line-height: 1.45;
+	padding: 10px 14px;
+	background: rgba(56, 189, 248, 0.05);
+	border: 1px solid rgba(56, 189, 248, 0.15);
+	border-radius: 10px;
 }
 
 /* Modal Actions Between */

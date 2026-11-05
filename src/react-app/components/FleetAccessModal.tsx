@@ -10,7 +10,6 @@ import {
 	Check,
 	AlertCircle,
 	Share2,
-	RefreshCw,
 	LogOut,
 } from "lucide-react";
 
@@ -21,7 +20,6 @@ interface FleetAccessModalProps {
 	isAuthorized: boolean;
 	onSaveToken: (token: string) => Promise<boolean>;
 	onClearToken: () => void;
-	onRotateToken: (newToken: string) => Promise<{ success: boolean; message?: string; error?: string }>;
 }
 
 export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
@@ -31,7 +29,6 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 	isAuthorized,
 	onSaveToken,
 	onClearToken,
-	onRotateToken,
 }) => {
 	const [inputToken, setInputToken] = useState(authToken || "");
 	const [showToken, setShowToken] = useState(false);
@@ -44,11 +41,6 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 	// Share link state
 	const [copiedShareLink, setCopiedShareLink] = useState(false);
 	const [copiedToken, setCopiedToken] = useState(false);
-
-	// Token rotation state
-	const [showRotateForm, setShowRotateForm] = useState(false);
-	const [newTokenInput, setNewTokenInput] = useState("");
-	const [isRotating, setIsRotating] = useState(false);
 
 	if (!isOpen) return null;
 
@@ -103,39 +95,6 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 			setTimeout(() => setCopiedToken(false), 2500);
 		} catch {
 			// fallback
-		}
-	};
-
-	const handleRotateTokenSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		const trimmed = newTokenInput.trim();
-		if (trimmed.length < 6) {
-			setStatusMessage({
-				type: "error",
-				text: "New token must be at least 6 characters long.",
-			});
-			return;
-		}
-
-		setIsRotating(true);
-		setStatusMessage(null);
-
-		const res = await onRotateToken(trimmed);
-		setIsRotating(false);
-
-		if (res.success) {
-			setInputToken(trimmed);
-			setNewTokenInput("");
-			setShowRotateForm(false);
-			setStatusMessage({
-				type: "success",
-				text: res.message || "Fleet access token successfully updated!",
-			});
-		} else {
-			setStatusMessage({
-				type: "error",
-				text: res.error || "Failed to update token.",
-			});
 		}
 	};
 
@@ -245,40 +204,14 @@ export const FleetAccessModal: React.FC<FleetAccessModalProps> = ({
 								</div>
 							</div>
 
-							{/* Token Rotation Option */}
+							{/* Token Management Info */}
 							<div className="rotate-section">
-								<button
-									type="button"
-									className="btn-text-toggle"
-									onClick={() => setShowRotateForm(!showRotateForm)}
-								>
-									<RefreshCw size={14} />
-									<span>{showRotateForm ? "Cancel Token Update" : "Update Fleet Access Token"}</span>
-								</button>
-
-								{showRotateForm && (
-									<form onSubmit={handleRotateTokenSubmit} className="rotate-form">
-										<div className="form-group">
-											<label>New Secret Token (min 6 characters)</label>
-											<input
-												type="text"
-												value={newTokenInput}
-												onChange={(e) => setNewTokenInput(e.target.value)}
-												placeholder="Enter new secret key..."
-												className="input-field font-mono"
-												required
-											/>
-										</div>
-										<button
-											type="submit"
-											className="btn-accent"
-											disabled={isRotating}
-										>
-											<RefreshCw size={14} className={isRotating ? "spin" : ""} />
-											<span>{isRotating ? "Updating..." : "Save New Token"}</span>
-										</button>
-									</form>
-								)}
+								<div className="token-manage-note">
+									<ShieldCheck size={14} className="icon-cyan" />
+									<span>
+										Fleet access credentials and rotation are managed securely via the Cloudflare dashboard.
+									</span>
+								</div>
 							</div>
 
 							{/* Status feedback */}
