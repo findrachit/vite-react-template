@@ -6,6 +6,10 @@ const app = new Hono<{ Bindings: Env }>();
 
 const SATELLITES_KV_KEY = "satellites:list";
 const AUTH_TOKEN_KV_KEY = "satellites:auth_token";
+const MAX_FLEET_SIZE = 200;
+
+const DEFAULT_SATELLITE_NORAD_IDS = new Set(defaultSatellites.map((s) => s.noradId));
+const DEFAULT_SATELLITE_IDS = new Set(defaultSatellites.map((s) => s.id));
 
 /**
  * Constant-time string equality check to prevent timing attacks.
@@ -51,6 +55,191 @@ interface SatelliteRecord {
 	}>;
 	description?: string;
 	icon?: string;
+}
+
+/**
+ * Validates NORAD Two-Line Element (TLE) syntax and catalog number alignment.
+ */
+function validateTleLines(
+	tleLine1: string,
+	tleLine2: string,
+	expectedNoradId: number
+): { valid: boolean; error?: string } {
+	const l1 = tleLine1.trim();
+	const l2 = tleLine2.trim();
+
+	if (!l1.startsWith("1 ") || l1.length < 60 || l1.length > 75) {
+		return { valid: false, error: "Invalid TLE Line 1: Must start with '1 ' and follow NORAD 69-character format." };
+	}
+
+	if (!l2.startsWith("2 ") || l2.length < 60 || l2.length > 75) {
+		return { valid: false, error: "Invalid TLE Line 2: Must start with '2 ' and follow NORAD 69-character format." };
+	}
+
+	// Validate NORAD catalog numbers from columns 3-7 (0-indexed 2 to 7)
+	const l1Norad = parseInt(l1.substring(2, 7).trim(), 10);
+	if (!isNaN(l1Norad) && l1Norad !== expectedNoradId) {
+		return {
+			valid: false,
+			error: `TLE Line 1 catalog number (${l1Norad}) does not match noradId (${expectedNoradId}).`,
+		};
+	}
+
+	const l2Norad = parseInt(l2.substring(2, 7).trim(), 10);
+	if (!isNaN(l2Norad) && l2Norad !== expectedNoradId) {
+		return {
+			valid: false,
+			error: `TLE Line 2 catalog number (${l2Norad}) does not match noradId (${expectedNoradId}).`,
+		};
+	}
+
+	return { valid: true };
+}
+
+/**
+ * Sanitizes and validates satellite mutation payloads against schema rules.
+ * Prevents mass assignment (BOPA) and verifies immutability of default satellites (BOLA).
+ */
+function sanitizeAndValidateSatelliteInput(
+	rawBody: unknown
+): { valid: true; data: SatelliteRecord } | { valid: false; error: string; statusCode: 400 | 403 } {
+	if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+		return { valid: false, error: "Invalid JSON payload: Must be a JSON object", statusCode: 400 };
+	}
+
+	const body = rawBody as Record<string, unknown>;
+
+	// 1. Validate noradId
+	if (body.noradId === undefined || body.noradId === null) {
+		return { valid: false, error: "Missing required field: noradId", statusCode: 400 };
+	}
+	const noradStr = String(body.noradId).trim();
+	if (!/^\d{1,7}$/.test(noradStr)) {
+		return { valid: false, error: "Field 'noradId' must be an integer between 1 and 9999999", statusCode: 400 };
+	}
+	const noradId = parseInt(noradStr, 10);
+	if (noradId < 1 || noradId > 9999999) {
+		return { valid: false, error: "Field 'noradId' must be between 1 and 9999999", statusCode: 400 };
+	}
+
+	// 2. Validate id (if provided)
+	let satId = `sat-${noradId}-${Date.now()}`;
+	if (typeof body.id === "string" && body.id.trim().length > 0) {
+		const trimmedId = body.id.trim();
+		if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmedId)) {
+			return {
+				valid: false,
+				error: "Field 'id' contains invalid characters. Use alphanumeric, dashes, or underscores (max 64 chars)",
+				statusCode: 400,
+			};
+		}
+		satId = trimmedId;
+	}
+
+	// VULN-03 BOLA check: Prevent modifying or overwriting default/core catalog satellites
+	if (DEFAULT_SATELLITE_NORAD_IDS.has(noradId) || DEFAULT_SATELLITE_IDS.has(satId)) {
+		return {
+			valid: false,
+			error: "Forbidden: Default catalog satellites are immutable and cannot be modified or overwritten.",
+			statusCode: 403,
+		};
+	}
+
+	// 3. Validate name
+	if (typeof body.name !== "string" || body.name.trim().length === 0) {
+		return { valid: false, error: "Field 'name' is required and must be a non-empty string", statusCode: 400 };
+	}
+	const name = body.name.trim().slice(0, 100);
+
+	// 4. Validate displayName
+	const displayName =
+		typeof body.displayName === "string" && body.displayName.trim().length > 0
+			? body.displayName.trim().slice(0, 100)
+			: name;
+
+	// 5. Validate TLE lines
+	if (typeof body.tleLine1 !== "string" || typeof body.tleLine2 !== "string") {
+		return { valid: false, error: "Missing required fields: tleLine1 and tleLine2 must be strings", statusCode: 400 };
+	}
+	const tleValidation = validateTleLines(body.tleLine1, body.tleLine2, noradId);
+	if (!tleValidation.valid) {
+		return { valid: false, error: tleValidation.error!, statusCode: 400 };
+	}
+
+	// 6. Validate color
+	let color = "#38bdf8";
+	if (typeof body.color === "string" && /^#[0-9a-fA-F]{6}$/.test(body.color.trim())) {
+		color = body.color.trim();
+	}
+
+	// 7. Optional text fields
+	const category = typeof body.category === "string" ? body.category.trim().slice(0, 50) : "Tracked Asset";
+	const callsign = typeof body.callsign === "string" ? body.callsign.trim().slice(0, 50) : undefined;
+	const designator = typeof body.designator === "string" ? body.designator.trim().slice(0, 50) : undefined;
+	const orbitType = typeof body.orbitType === "string" ? body.orbitType.trim().slice(0, 50) : "Low Earth Orbit (LEO)";
+	const frequency = typeof body.frequency === "string" ? body.frequency.trim().slice(0, 100) : undefined;
+	const description =
+		typeof body.description === "string"
+			? body.description.trim().slice(0, 1000)
+			: `Satellite tracked via NORAD catalog ID ${noradId}`;
+	const icon =
+		typeof body.icon === "string" && /^[a-zA-Z0-9_-]{1,30}$/.test(body.icon.trim())
+			? body.icon.trim()
+			: "satellite";
+
+	// 8. Numeric orbital fields
+	const altitudeKm =
+		typeof body.altitudeKm === "number" && Number.isFinite(body.altitudeKm) && body.altitudeKm >= 0
+			? body.altitudeKm
+			: undefined;
+	const inclinationDeg =
+		typeof body.inclinationDeg === "number" && Number.isFinite(body.inclinationDeg)
+			? body.inclinationDeg
+			: undefined;
+	const periodMin =
+		typeof body.periodMin === "number" && Number.isFinite(body.periodMin) && body.periodMin > 0
+			? body.periodMin
+			: undefined;
+
+	// 9. Transmissions array
+	let transmissions: SatelliteRecord["transmissions"] = undefined;
+	if (Array.isArray(body.transmissions)) {
+		transmissions = [];
+		for (const tx of body.transmissions.slice(0, 10)) {
+			if (tx && typeof tx === "object" && typeof tx.type === "string" && typeof tx.frequency === "string") {
+				transmissions.push({
+					type: tx.type.trim().slice(0, 50),
+					frequency: tx.frequency.trim().slice(0, 50),
+					band: typeof tx.band === "string" ? tx.band.trim().slice(0, 50) : undefined,
+					description: typeof tx.description === "string" ? tx.description.trim().slice(0, 200) : undefined,
+				});
+			}
+		}
+	}
+
+	// Strictly scoped record prevents mass assignment and prototype pollution
+	const sanitizedRecord: SatelliteRecord = {
+		id: satId,
+		name,
+		displayName,
+		noradId,
+		color,
+		category,
+		callsign,
+		designator,
+		orbitType,
+		altitudeKm,
+		inclinationDeg,
+		periodMin,
+		frequency,
+		transmissions,
+		description,
+		icon,
+		tleLine1: body.tleLine1.trim(),
+		tleLine2: body.tleLine2.trim(),
+	};
+
+	return { valid: true, data: sanitizedRecord };
 }
 
 /**
@@ -221,8 +410,18 @@ app.get("/api/satellites", async (c) => {
 // Add or update satellite in KV (access-controlled)
 app.post("/api/satellites", async (c) => {
 	try {
-		const body = await c.req.json();
-		const authorized = await isAuthorized(c, body?.token);
+		let body: unknown;
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON payload" }, 400);
+		}
+
+		const bodyObj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+		const authorized = await isAuthorized(
+			c,
+			typeof bodyObj.token === "string" ? bodyObj.token : undefined
+		);
 		if (!authorized) {
 			return c.json(
 				{
@@ -233,40 +432,29 @@ app.post("/api/satellites", async (c) => {
 			);
 		}
 
-		if (!body || !body.noradId || !body.tleLine1 || !body.tleLine2) {
-			return c.json({ error: "Missing required fields (noradId, tleLine1, tleLine2)" }, 400);
+		const validation = sanitizeAndValidateSatelliteInput(body);
+		if (!validation.valid) {
+			return c.json({ error: validation.error }, validation.statusCode);
 		}
 
+		const newSat = validation.data;
 		const currentFleet = await getSatellitesFleet(c.env);
-		const newSat: SatelliteRecord = {
-			id: body.id || `sat-${body.noradId}-${Date.now()}`,
-			name: body.name || `Satellite ${body.noradId}`,
-			displayName: body.displayName || body.name || `Satellite ${body.noradId}`,
-			noradId: parseInt(body.noradId, 10),
-			color: body.color || "#38bdf8",
-			category: body.category || "Tracked Asset",
-			callsign: body.callsign,
-			designator: body.designator,
-			orbitType: body.orbitType || "Low Earth Orbit (LEO)",
-			altitudeKm: body.altitudeKm,
-			inclinationDeg: body.inclinationDeg,
-			periodMin: body.periodMin,
-			frequency: body.frequency,
-			transmissions: body.transmissions,
-			description: body.description || `Satellite tracked via NORAD catalog ID ${body.noradId}`,
-			icon: body.icon || "satellite",
-			tleLine1: body.tleLine1.trim(),
-			tleLine2: body.tleLine2.trim(),
-		};
 
 		const existingIndex = currentFleet.findIndex(
 			(s) => s.noradId === newSat.noradId || s.id === newSat.id
 		);
 
+		if (existingIndex < 0 && currentFleet.length >= MAX_FLEET_SIZE) {
+			return c.json(
+				{ error: `Fleet size limit reached (maximum ${MAX_FLEET_SIZE} satellites allowed)` },
+				400
+			);
+		}
+
 		let updatedFleet: SatelliteRecord[];
 		if (existingIndex >= 0) {
 			updatedFleet = [...currentFleet];
-			updatedFleet[existingIndex] = { ...updatedFleet[existingIndex], ...newSat };
+			updatedFleet[existingIndex] = newSat;
 		} else {
 			updatedFleet = [...currentFleet, newSat];
 		}
@@ -300,11 +488,35 @@ app.delete("/api/satellites/:idOrNorad", async (c) => {
 	}
 
 	const param = c.req.param("idOrNorad");
+	if (!param || !/^[a-zA-Z0-9_-]{1,64}$/.test(param)) {
+		return c.json({ error: "Invalid satellite identifier" }, 400);
+	}
+
+	// VULN-03: Default catalog satellite protection
+	const isDefaultSat =
+		DEFAULT_SATELLITE_IDS.has(param) ||
+		defaultSatellites.some((s) => s.noradId.toString() === param);
+	if (isDefaultSat) {
+		return c.json(
+			{
+				error: "Forbidden: Default catalog satellites cannot be deleted from the fleet",
+			},
+			403
+		);
+	}
+
 	try {
 		const currentFleet = await getSatellitesFleet(c.env);
-		const updatedFleet = currentFleet.filter(
-			(s) => s.id !== param && s.noradId.toString() !== param
+		const targetIndex = currentFleet.findIndex(
+			(s) => s.id === param || s.noradId.toString() === param
 		);
+
+		if (targetIndex === -1) {
+			return c.json({ error: "Satellite not found in fleet" }, 404);
+		}
+
+		const removedSat = currentFleet[targetIndex];
+		const updatedFleet = currentFleet.filter((_, idx) => idx !== targetIndex);
 
 		if (c.env.SATELLITES_KV) {
 			await c.env.SATELLITES_KV.put(SATELLITES_KV_KEY, JSON.stringify(updatedFleet));
@@ -312,7 +524,8 @@ app.delete("/api/satellites/:idOrNorad", async (c) => {
 
 		return c.json({
 			success: true,
-			removed: param,
+			removed: removedSat.id,
+			noradId: removedSat.noradId,
 			total: updatedFleet.length,
 		});
 	} catch (e) {
@@ -361,19 +574,29 @@ app.post("/api/satellites/reset", async (c) => {
 
 // Fetch fresh TLE from CelesTrak with fallback to KV cache & catalog
 app.get("/api/tle/:noradId", async (c) => {
-	const noradId = c.req.param("noradId");
+	const noradParam = c.req.param("noradId");
+
+	// VULN-05: Strict numeric validation
+	if (!noradParam || !/^\d{1,7}$/.test(noradParam)) {
+		return c.json({ error: "Invalid NORAD catalog ID. Must be 1-7 numeric digits." }, 400);
+	}
+	const noradId = parseInt(noradParam, 10);
+	if (noradId < 1 || noradId > 9999999) {
+		return c.json({ error: "NORAD ID out of valid range" }, 400);
+	}
 
 	try {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-		const res = await fetch(
-			`https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=TLE`,
-			{
-				signal: controller.signal,
-				headers: { "User-Agent": "AstroPass/1.0" },
-			}
-		);
+		const upstreamUrl = new URL("https://celestrak.org/NORAD/elements/gp.php");
+		upstreamUrl.searchParams.set("CATNR", noradId.toString());
+		upstreamUrl.searchParams.set("FORMAT", "TLE");
+
+		const res = await fetch(upstreamUrl.toString(), {
+			signal: controller.signal,
+			headers: { "User-Agent": "AstroPass/1.0" },
+		});
 		clearTimeout(timeoutId);
 
 		if (res.ok) {
@@ -384,7 +607,7 @@ app.get("/api/tle/:noradId", async (c) => {
 				.filter(Boolean);
 			if (lines.length >= 3 && lines[1].startsWith("1 ") && lines[2].startsWith("2 ")) {
 				const freshTle = {
-					noradId: parseInt(noradId, 10),
+					noradId,
 					name: lines[0],
 					tleLine1: lines[1],
 					tleLine2: lines[2],
@@ -392,7 +615,7 @@ app.get("/api/tle/:noradId", async (c) => {
 					fetchedAt: new Date().toISOString(),
 				};
 
-				// Cache live TLE in KV for 24 hours
+				// Cache live TLE in KV for 24 hours under sanitized numeric key
 				if (c.env.SATELLITES_KV) {
 					c.executionCtx.waitUntil(
 						c.env.SATELLITES_KV.put(`tle:${noradId}`, JSON.stringify(freshTle), {
@@ -408,7 +631,7 @@ app.get("/api/tle/:noradId", async (c) => {
 		// Network or timeout failure, fall back to cached data
 	}
 
-	// Try KV TLE cache
+	// Try KV TLE cache with sanitized key
 	if (c.env.SATELLITES_KV) {
 		try {
 			const cached = await c.env.SATELLITES_KV.get(`tle:${noradId}`, "json");
@@ -422,7 +645,7 @@ app.get("/api/tle/:noradId", async (c) => {
 
 	// Try fleet catalog in KV or default
 	const fleet = await getSatellitesFleet(c.env);
-	const localSat = fleet.find((s) => s.noradId.toString() === noradId);
+	const localSat = fleet.find((s) => s.noradId === noradId);
 
 	if (localSat) {
 		return c.json({
@@ -440,12 +663,31 @@ app.get("/api/tle/:noradId", async (c) => {
 
 // Lookup any satellite by NORAD catalog ID from CelesTrak
 app.get("/api/lookup/:noradId", async (c) => {
-	const noradId = c.req.param("noradId");
+	const noradParam = c.req.param("noradId");
+
+	// VULN-05: Strict numeric validation
+	if (!noradParam || !/^\d{1,7}$/.test(noradParam)) {
+		return c.json({ error: "Invalid NORAD catalog ID. Must be 1-7 numeric digits." }, 400);
+	}
+	const noradId = parseInt(noradParam, 10);
+	if (noradId < 1 || noradId > 9999999) {
+		return c.json({ error: "NORAD ID out of valid range" }, 400);
+	}
+
 	try {
-		const res = await fetch(
-			`https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=TLE`,
-			{ headers: { "User-Agent": "AstroPass/1.0" } }
-		);
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+		const upstreamUrl = new URL("https://celestrak.org/NORAD/elements/gp.php");
+		upstreamUrl.searchParams.set("CATNR", noradId.toString());
+		upstreamUrl.searchParams.set("FORMAT", "TLE");
+
+		const res = await fetch(upstreamUrl.toString(), {
+			signal: controller.signal,
+			headers: { "User-Agent": "AstroPass/1.0" },
+		});
+		clearTimeout(timeoutId);
+
 		if (!res.ok) {
 			return c.json({ error: `Satellite ${noradId} not found on CelesTrak` }, 404);
 		}
@@ -459,15 +701,15 @@ app.get("/api/lookup/:noradId", async (c) => {
 		}
 
 		return c.json({
-			noradId: parseInt(noradId, 10),
+			noradId,
 			name: lines[0],
 			tleLine1: lines[1],
 			tleLine2: lines[2],
 			source: "celestrak",
 		});
 	} catch (e) {
-		const message = e instanceof Error ? e.message : "Lookup failed";
-		return c.json({ error: message }, 500);
+		const message = e instanceof Error && e.name === "AbortError" ? "Lookup request timed out" : "Lookup failed";
+		return c.json({ error: message }, 502);
 	}
 });
 
