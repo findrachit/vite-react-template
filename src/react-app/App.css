@@ -320,42 +320,98 @@ body {
 	border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* Tabs Bar */
-.tabs-bar {
-	border-top: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.tabs-container {
-	max-width: 1300px;
-	margin: 0 auto;
-	padding: 0 20px;
-	display: flex;
-	gap: 4px;
-}
-
-.nav-tab {
+/* Navigation Tabs Bar (Below Hero Section) */
+.section-tabs-bar {
+	margin-bottom: 24px;
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	background: transparent;
-	border: none;
-	border-bottom: 2px solid transparent;
-	color: var(--text-muted);
-	padding: 12px 18px;
-	font-size: 0.85rem;
-	font-weight: 600;
-	cursor: pointer;
-	transition: all 0.2s;
+	justify-content: flex-start;
 }
 
-.nav-tab:hover {
+.section-tabs-container {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(10, 18, 36, 0.75);
+	backdrop-filter: blur(16px);
+	border: 1px solid var(--border-subtle);
+	border-radius: 14px;
+	padding: 5px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.nav-tab-btn {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 10px;
+	color: var(--text-muted);
+	padding: 9px 18px;
+	font-size: 0.88rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	white-space: nowrap;
+	user-select: none;
+}
+
+.nav-tab-btn:hover {
+	color: var(--text-main);
+	background: rgba(255, 255, 255, 0.05);
+	border-color: rgba(255, 255, 255, 0.08);
+}
+
+.nav-tab-btn.active {
+	color: var(--accent-cyan);
+	background: rgba(56, 189, 248, 0.12);
+	border-color: rgba(56, 189, 248, 0.35);
+	box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+}
+
+.tab-badge {
+	font-size: 0.72rem;
+	font-weight: 700;
+	padding: 2px 7px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--text-muted);
+	transition: all 0.2s ease;
+}
+
+.nav-tab-btn:hover .tab-badge {
 	color: var(--text-main);
 }
 
-.nav-tab.active {
-	color: var(--accent-cyan);
-	border-bottom-color: var(--accent-cyan);
-	background: linear-gradient(180deg, transparent 0%, rgba(56, 189, 248, 0.06) 100%);
+.nav-tab-btn.active .tab-badge {
+	background: rgba(56, 189, 248, 0.25);
+	color: #e0f2fe;
+}
+
+@media (max-width: 640px) {
+	.section-tabs-bar {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+		padding-bottom: 4px;
+	}
+
+	.section-tabs-bar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.section-tabs-container {
+		display: flex;
+		width: 100%;
+		min-width: fit-content;
+	}
+
+	.nav-tab-btn {
+		padding: 8px 12px;
+		font-size: 0.8rem;
+		gap: 6px;
+	}
 }
 
 /* Countdown Card */
