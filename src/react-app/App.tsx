@@ -5,6 +5,7 @@ import type { SatelliteInfo, ObserverLocation, SatellitePass, LiveTelemetry } fr
 import { calculatePasses, calculateLiveTelemetry } from "./utils/satelliteTracker";
 import { Starfield } from "./components/Starfield";
 import { Header } from "./components/Header";
+import { NavigationTabs } from "./components/NavigationTabs";
 import { PassCountdown } from "./components/PassCountdown";
 import { PassList } from "./components/PassList";
 import { SkyRadar } from "./components/SkyRadar";
@@ -513,7 +514,12 @@ export function App() {
 	const handleSelectPassForRadar = (pass: SatellitePass) => {
 		setSelectedPass(pass);
 		setActiveTab("radar");
-		window.scrollTo({ top: 0, behavior: "smooth" });
+		const tabsEl = document.getElementById("main-nav-tabs");
+		if (tabsEl) {
+			tabsEl.scrollIntoView({ behavior: "smooth" });
+		} else {
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
 	};
 
 	const activeSelectedPass = useMemo(() => {
@@ -548,10 +554,6 @@ export function App() {
 				location={location}
 				onOpenLocationModal={() => setIsLocationModalOpen(true)}
 				onOpenAddSatelliteModal={() => setIsAddModalOpen(true)}
-				activeTab={activeTab}
-				onSelectTab={setActiveTab}
-				satelliteCount={satellites.length}
-				passCount={passes.length}
 				onRefresh={recomputePasses}
 				isRefreshing={isRefreshing}
 				isAuthorized={isAuthorized}
@@ -568,6 +570,14 @@ export function App() {
 					onSelectPassForRadar={handleSelectPassForRadar}
 					selectedTransmissionType={selectedTransmissionType}
 					onSelectTransmissionType={setSelectedTransmissionType}
+				/>
+
+				{/* Dashboard Navigation Tabs */}
+				<NavigationTabs
+					activeTab={activeTab}
+					onSelectTab={setActiveTab}
+					passCount={passes.length}
+					satelliteCount={satellites.length}
 				/>
 
 				{/* Tab 1: 48-Hour Pass Schedule */}

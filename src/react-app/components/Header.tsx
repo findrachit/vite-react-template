@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
 	MapPin,
-	Radio,
 	Clock,
 	Plus,
 	Satellite,
-	Radar,
-	Layers,
 	RefreshCw,
 	ShieldCheck,
 	Lock,
@@ -17,10 +14,6 @@ interface HeaderProps {
 	location: ObserverLocation;
 	onOpenLocationModal: () => void;
 	onOpenAddSatelliteModal: () => void;
-	activeTab: "passes" | "radar" | "fleet";
-	onSelectTab: (tab: "passes" | "radar" | "fleet") => void;
-	satelliteCount: number;
-	passCount: number;
 	onRefresh: () => void;
 	isRefreshing: boolean;
 	isAuthorized: boolean;
@@ -31,10 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
 	location,
 	onOpenLocationModal,
 	onOpenAddSatelliteModal,
-	activeTab,
-	onSelectTab,
-	satelliteCount,
-	passCount,
 	onRefresh,
 	isRefreshing,
 	isAuthorized,
@@ -144,33 +133,6 @@ export const Header: React.FC<HeaderProps> = ({
 					>
 						<Plus size={16} />
 						<span>Track Satellite</span>
-					</button>
-				</div>
-			</div>
-
-			{/* Navigation Tabs */}
-			<div className="tabs-bar">
-				<div className="tabs-container">
-					<button
-						className={`nav-tab ${activeTab === "passes" ? "active" : ""}`}
-						onClick={() => onSelectTab("passes")}
-					>
-						<Radio size={16} />
-						<span>Upcoming Passes ({passCount})</span>
-					</button>
-					<button
-						className={`nav-tab ${activeTab === "radar" ? "active" : ""}`}
-						onClick={() => onSelectTab("radar")}
-					>
-						<Radar size={16} />
-						<span>Sky Radar & Dome</span>
-					</button>
-					<button
-						className={`nav-tab ${activeTab === "fleet" ? "active" : ""}`}
-						onClick={() => onSelectTab("fleet")}
-					>
-						<Layers size={16} />
-						<span>Tracked Fleet ({satelliteCount})</span>
 					</button>
 				</div>
 			</div>
