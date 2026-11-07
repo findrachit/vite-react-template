@@ -138,12 +138,25 @@ export const PassList: React.FC<PassListProps> = ({
 				{/* Row 1: Satellite & Elevation/Time Filters */}
 				<div className="filters-row">
 					{/* Satellite Filter Tabs */}
-					<div className="filter-group">
+					<div className="filter-group satellite-filter-group">
 						<span className="filter-label">Satellite:</span>
-						<div className="btn-tab-group">
+						<div
+							className="btn-tab-group satellite-tabs"
+							role="tablist"
+							aria-label="Filter passes by satellite"
+						>
 							<button
+								role="tab"
+								aria-selected={selectedSatelliteId === "all"}
 								className={`filter-chip ${selectedSatelliteId === "all" ? "active" : ""}`}
-								onClick={() => setSelectedSatelliteId("all")}
+								onClick={(e) => {
+									setSelectedSatelliteId("all");
+									e.currentTarget.scrollIntoView({
+										behavior: "smooth",
+										block: "nearest",
+										inline: "nearest",
+									});
+								}}
 							>
 								All Fleet ({passes.length})
 							</button>
@@ -152,8 +165,17 @@ export const PassList: React.FC<PassListProps> = ({
 								return (
 									<button
 										key={s.id}
+										role="tab"
+										aria-selected={selectedSatelliteId === s.id}
 										className={`filter-chip ${selectedSatelliteId === s.id ? "active" : ""}`}
-										onClick={() => setSelectedSatelliteId(s.id)}
+										onClick={(e) => {
+											setSelectedSatelliteId(s.id);
+											e.currentTarget.scrollIntoView({
+												behavior: "smooth",
+												block: "nearest",
+												inline: "nearest",
+											});
+										}}
 									>
 										<span
 											className="sat-indicator"
