@@ -111,3 +111,9 @@ export interface AuthStatusInfo {
 	tokenKey?: string;
 }
 
+export interface TimePeriodOption {
+	hours: number;
+	label: string;
+	shortLabel: string;
+}
+

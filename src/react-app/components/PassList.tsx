@@ -3,6 +3,7 @@ import {
 	Radio,
 	Sparkles,
 	Clock,
+	CalendarClock,
 	Compass,
 	ArrowRight,
 	Satellite,
@@ -16,6 +17,8 @@ import {
 	getSatelliteTransmissions,
 	matchesTransmissionType,
 	getActiveTransmission,
+	TIME_PERIOD_OPTIONS,
+	formatPredictionPeriod,
 } from "../utils/satelliteTracker";
 
 interface PassListProps {
@@ -25,6 +28,8 @@ interface PassListProps {
 	selectedPassId?: string;
 	selectedTransmissionType?: string;
 	onSelectTransmissionType?: (type: string) => void;
+	timePeriodHours: number;
+	onSelectTimePeriod: (hours: number) => void;
 }
 
 export const PassList: React.FC<PassListProps> = ({
@@ -34,6 +39,8 @@ export const PassList: React.FC<PassListProps> = ({
 	selectedPassId,
 	selectedTransmissionType: propSelectedTransmissionType,
 	onSelectTransmissionType,
+	timePeriodHours,
+	onSelectTimePeriod,
 }) => {
 	const [selectedSatelliteId, setSelectedSatelliteId] = useState<string>("all");
 	const [minElevationFilter, setMinElevationFilter] = useState<number>(10);
@@ -188,8 +195,28 @@ export const PassList: React.FC<PassListProps> = ({
 						</div>
 					</div>
 
-					{/* Elevation and Visibility Filters */}
+					{/* Elevation, Time Window and Visibility Filters */}
 					<div className="filter-group-right">
+						{/* Prediction Time Period Filter */}
+						<div className="filter-group">
+							<span className="filter-label flex-align-gap">
+								<CalendarClock size={13} className="text-cyan" />
+								<span>Period:</span>
+							</span>
+							<select
+								value={timePeriodHours}
+								onChange={(e) => onSelectTimePeriod(Number(e.target.value))}
+								className="select-field time-period-select"
+								aria-label="Select pass prediction time period"
+							>
+								{TIME_PERIOD_OPTIONS.map((opt) => (
+									<option key={opt.hours} value={opt.hours}>
+										{opt.label}
+									</option>
+								))}
+							</select>
+						</div>
+
 						{/* Min Elevation Filter */}
 						<div className="filter-group">
 							<span className="filter-label">Min Elevation:</span>
@@ -282,7 +309,7 @@ export const PassList: React.FC<PassListProps> = ({
 						{" "}for <strong>{selectedTransmission}</strong>
 					</span>
 				)}{" "}
-				across the next 48 hours
+				across the next {formatPredictionPeriod(timePeriodHours)}
 			</div>
 
 			{/* Pass Groupings */}

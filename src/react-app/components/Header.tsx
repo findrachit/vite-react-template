@@ -9,6 +9,7 @@ import {
 	Lock,
 } from "lucide-react";
 import type { ObserverLocation } from "../types";
+import { TIME_PERIOD_OPTIONS, formatPredictionPeriod } from "../utils/satelliteTracker";
 
 interface HeaderProps {
 	location: ObserverLocation;
@@ -18,6 +19,8 @@ interface HeaderProps {
 	isRefreshing: boolean;
 	isAuthorized: boolean;
 	onOpenAccessModal: () => void;
+	timePeriodHours: number;
+	onSelectTimePeriod: (hours: number) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
 	isRefreshing,
 	isAuthorized,
 	onOpenAccessModal,
+	timePeriodHours,
+	onSelectTimePeriod,
 }) => {
 	const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -56,7 +61,23 @@ export const Header: React.FC<HeaderProps> = ({
 					<div>
 						<div className="brand-title">
 							ASTRO<span className="text-cyan">PASS</span>
-							<span className="live-pill">LIVE 48H</span>
+							<div
+								className="live-pill-container"
+								title={`Prediction window: ${formatPredictionPeriod(timePeriodHours)} (click to change)`}
+							>
+								<select
+									aria-label="Prediction period"
+									className="live-pill-select"
+									value={timePeriodHours}
+									onChange={(e) => onSelectTimePeriod(Number(e.target.value))}
+								>
+									{TIME_PERIOD_OPTIONS.map((opt) => (
+										<option key={opt.hours} value={opt.hours}>
+											LIVE {opt.shortLabel}
+										</option>
+									))}
+								</select>
+							</div>
 						</div>
 						<div className="brand-subtitle">
 							Orbital Pass Predictor & Ground Station
