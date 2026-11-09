@@ -2419,14 +2419,16 @@ body {
 
 .lookup-search-icon {
 	position: absolute;
-	left: 12px;
+	left: 14px;
 	color: var(--text-muted);
 	pointer-events: none;
+	z-index: 2;
 }
 
-.lookup-input {
-	padding-left: 36px;
-	padding-right: 34px;
+.lookup-search-input-wrap .lookup-input,
+input.lookup-input {
+	padding-left: 42px !important;
+	padding-right: 36px !important;
 	width: 100%;
 }
 

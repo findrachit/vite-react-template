@@ -113,6 +113,26 @@ const KNOWN_METADATA: Record<
 			},
 		],
 	},
+	59051: {
+		category: "Weather Satellite",
+		color: "#10b981",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+	},
+	57166: {
+		category: "Weather Satellite",
+		color: "#06b6d4",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+	},
+	44387: {
+		category: "Weather Satellite",
+		color: "#3b82f6",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+	},
+	40069: {
+		category: "Weather Satellite",
+		color: "#f59e0b",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+	},
 };
 
 const COLOR_PALETTE = [
@@ -457,7 +477,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 													{sat.category && <span className="lookup-tag">{sat.category}</span>}
 													{sat.frequency && <span className="lookup-freq">{sat.frequency}</span>}
 													<span className="lookup-source">
-														Source: {sat.source === "catalog" ? "Catalog" : "CelesTrak"}
+														Source: {sat.source === "catalog" ? "Fleet Catalog" : sat.source === "tle-api" ? "NORAD / CelesTrak" : "CelesTrak"}
 													</span>
 												</div>
 											</div>
