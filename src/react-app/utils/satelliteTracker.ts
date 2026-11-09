@@ -8,7 +8,37 @@ import type {
 	PassVisibility,
 	ElevationCategory,
 	SatelliteTransmission,
+	TimePeriodOption,
 } from "../types";
+
+export const DEFAULT_PREDICTION_HOURS = 24;
+
+export const TIME_PERIOD_OPTIONS: TimePeriodOption[] = [
+	{ hours: 12, label: "12 Hours (0.5 days)", shortLabel: "12H" },
+	{ hours: 24, label: "24 Hours (1 day) - Default", shortLabel: "24H" },
+	{ hours: 36, label: "36 Hours (1.5 days)", shortLabel: "36H" },
+	{ hours: 48, label: "48 Hours (2 days)", shortLabel: "48H" },
+	{ hours: 60, label: "60 Hours (2.5 days)", shortLabel: "60H" },
+	{ hours: 72, label: "72 Hours (3 days)", shortLabel: "72H" },
+	{ hours: 84, label: "84 Hours (3.5 days)", shortLabel: "84H" },
+	{ hours: 96, label: "96 Hours (4 days)", shortLabel: "96H" },
+	{ hours: 108, label: "108 Hours (4.5 days)", shortLabel: "108H" },
+	{ hours: 120, label: "120 Hours (5 days)", shortLabel: "120H" },
+	{ hours: 132, label: "132 Hours (5.5 days)", shortLabel: "132H" },
+	{ hours: 144, label: "144 Hours (6 days)", shortLabel: "144H" },
+	{ hours: 156, label: "156 Hours (6.5 days)", shortLabel: "156H" },
+	{ hours: 168, label: "168 Hours (7 days - Max)", shortLabel: "168H" },
+];
+
+export function formatPredictionPeriod(hours: number): string {
+	if (hours === 24) return "24 hours (1 day)";
+	if (hours % 24 === 0) {
+		const days = hours / 24;
+		return `${hours} hours (${days} day${days > 1 ? "s" : ""})`;
+	}
+	const days = (hours / 24).toFixed(1).replace(/\.0$/, "");
+	return `${hours} hours (${days} days)`;
+}
 
 export function rad2deg(rad: number): number {
 	return rad * (180 / Math.PI);
@@ -189,7 +219,7 @@ export function calculatePasses(
 	satellites: SatelliteInfo[],
 	observer: ObserverLocation,
 	startTime: Date = new Date(),
-	durationHours = 48,
+	durationHours = DEFAULT_PREDICTION_HOURS,
 	minPeakElevation = 10
 ): SatellitePass[] {
 	const allPasses: SatellitePass[] = [];

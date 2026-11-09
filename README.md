@@ -1,10 +1,10 @@
 # AstroPass — Satellite Pass Tracker & Ground Station
 
-A modern space-themed satellite pass predictor built with **React 19**, **Vite 7**, **Hono**, and **Cloudflare Workers**. AstroPass computes high-precision orbital pass times and look angles over your ground station from the current moment through the next 48 hours (2 days), with real-time telemetry, visual pass classification, and a polar sky radar.
+A modern space-themed satellite pass predictor built with **React 19**, **Vite 7**, **Hono**, and **Cloudflare Workers**. AstroPass computes high-precision orbital pass times and look angles over your ground station across a user-configurable time window (24 hours by default, selectable from 12 hours up to 7 days, persisted in local storage), with real-time telemetry, visual pass classification, and a polar sky radar.
 
 ## ✨ Features
 
-- 🛰️ **48-Hour Pass Prediction**: Calculates satellite acquisition (AOS), culmination (Max Elevation), and loss of signal (LOS) over the user's current location from current time until the next 2 days.
+- 🛰️ **Configurable Pass Prediction (24h Default up to 7 Days)**: Calculates satellite acquisition (AOS), culmination (Max Elevation), and loss of signal (LOS) over the user's ground station. Users can configure the time window (12h, 24h, 36h... up to 7 days), with selections automatically persisted in browser `localStorage`.
 - 📋 **Maintained Satellite List (`src/data/satellites.json`)**: Preconfigured with:
   1. **International Space Station (ISS)** (NORAD ID: `25544`)
   2. **SakhaCube-Cholbon (RS18S)** (NORAD ID: `67290`)

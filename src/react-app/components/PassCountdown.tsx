@@ -14,6 +14,7 @@ import {
 	formatDuration,
 	getSatelliteTransmissions,
 	getActiveTransmission,
+	formatPredictionPeriod,
 } from "../utils/satelliteTracker";
 
 interface PassCountdownProps {
@@ -23,6 +24,7 @@ interface PassCountdownProps {
 	onSelectPassForRadar: (pass: SatellitePass) => void;
 	selectedTransmissionType?: string;
 	onSelectTransmissionType?: (type: string) => void;
+	timePeriodHours?: number;
 }
 
 export const PassCountdown: React.FC<PassCountdownProps> = ({
@@ -32,6 +34,7 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	onSelectPassForRadar,
 	selectedTransmissionType,
 	onSelectTransmissionType,
+	timePeriodHours = 24,
 }) => {
 	const [now, setNow] = useState(new Date());
 
@@ -44,9 +47,11 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 		return (
 			<div className="countdown-card empty-state">
 				<Satellite className="empty-icon" size={32} />
-				<div className="empty-title">No passes detected in the next 48 hours</div>
+				<div className="empty-title">
+					No passes detected in the next {formatPredictionPeriod(timePeriodHours)}
+				</div>
 				<div className="empty-subtitle">
-					Try lowering the minimum elevation filter or checking your ground station coordinates.
+					Try extending the prediction time window, lowering the minimum elevation filter, or checking your ground station coordinates.
 				</div>
 			</div>
 		);

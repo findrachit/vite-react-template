@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import "./App.css";
 import defaultSatellitesJson from "../data/satellites.json";
 import type { SatelliteInfo, ObserverLocation, SatellitePass, LiveTelemetry } from "./types";
-import { calculatePasses, calculateLiveTelemetry } from "./utils/satelliteTracker";
+import { calculatePasses, calculateLiveTelemetry, DEFAULT_PREDICTION_HOURS } from "./utils/satelliteTracker";
 import { Starfield } from "./components/Starfield";
 import { Header } from "./components/Header";
 import { NavigationTabs } from "./components/NavigationTabs";
@@ -18,6 +18,7 @@ import { Check, AlertCircle, X, ShieldCheck } from "lucide-react";
 const STORAGE_KEY_LOCATION = "astropass_user_location";
 const STORAGE_KEY_SATELLITES = "astropass_custom_satellites";
 const STORAGE_KEY_AUTH_TOKEN = "astropass_fleet_auth_token";
+const STORAGE_KEY_TIME_PERIOD = "astropass_pass_duration_hours";
 
 const DEFAULT_OBSERVER: ObserverLocation = {
 	name: "London (Observer)",
@@ -80,9 +81,32 @@ export function App() {
 		message: string;
 	} | null>(null);
 
-	// 5. Passes State (Current time until next 2 days / 48 hours)
+	// 5. Passes State (Configurable prediction window, default 24 hours)
 	const [refreshKey, setRefreshKey] = useState(0);
 	const [currentTime, setCurrentTime] = useState(new Date());
+	const [timePeriodHours, setTimePeriodHours] = useState<number>(() => {
+		try {
+			const saved = localStorage.getItem(STORAGE_KEY_TIME_PERIOD);
+			if (saved) {
+				const parsed = parseInt(saved, 10);
+				if (!isNaN(parsed) && parsed >= 12 && parsed <= 168 && parsed % 12 === 0) {
+					return parsed;
+				}
+			}
+		} catch {
+			// ignore localStorage error
+		}
+		return DEFAULT_PREDICTION_HOURS;
+	});
+
+	const handleSelectTimePeriod = useCallback((hours: number) => {
+		setTimePeriodHours(hours);
+		try {
+			localStorage.setItem(STORAGE_KEY_TIME_PERIOD, hours.toString());
+		} catch {
+			// ignore localStorage error
+		}
+	}, []);
 
 	// Auto-dismiss toast notification after 5 seconds
 	useEffect(() => {
@@ -223,12 +247,12 @@ export function App() {
 		}
 	}, []);
 
-	// Recalculate passes for next 48 hours with useMemo
+	// Recalculate passes for configured prediction window with useMemo
 	const passes = useMemo(() => {
 		if (refreshKey < 0) return [];
 		const now = new Date();
-		return calculatePasses(satellites, location, now, 48, 10);
-	}, [satellites, location, refreshKey]);
+		return calculatePasses(satellites, location, now, timePeriodHours, 10);
+	}, [satellites, location, refreshKey, timePeriodHours]);
 
 	const recomputePasses = useCallback(() => {
 		setIsRefreshing(true);
@@ -558,6 +582,8 @@ export function App() {
 				isRefreshing={isRefreshing}
 				isAuthorized={isAuthorized}
 				onOpenAccessModal={() => setIsAccessModalOpen(true)}
+				timePeriodHours={timePeriodHours}
+				onSelectTimePeriod={handleSelectTimePeriod}
 			/>
 
 			{/* Main Dashboard Content */}
@@ -570,6 +596,7 @@ export function App() {
 					onSelectPassForRadar={handleSelectPassForRadar}
 					selectedTransmissionType={selectedTransmissionType}
 					onSelectTransmissionType={setSelectedTransmissionType}
+					timePeriodHours={timePeriodHours}
 				/>
 
 				{/* Dashboard Navigation Tabs */}
@@ -580,7 +607,7 @@ export function App() {
 					satelliteCount={satellites.length}
 				/>
 
-				{/* Tab 1: 48-Hour Pass Schedule */}
+				{/* Tab 1: Configured Pass Schedule */}
 				{activeTab === "passes" && (
 					<PassList
 						passes={passes}
@@ -589,6 +616,8 @@ export function App() {
 						selectedPassId={activeSelectedPass?.id}
 						selectedTransmissionType={selectedTransmissionType}
 						onSelectTransmissionType={setSelectedTransmissionType}
+						timePeriodHours={timePeriodHours}
+						onSelectTimePeriod={handleSelectTimePeriod}
 					/>
 				)}
 
