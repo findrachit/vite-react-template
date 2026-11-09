@@ -633,6 +633,7 @@ export function App() {
 				onAddSatellite={handleAddSatellite}
 				isAuthorized={isAuthorized}
 				onOpenAccessModal={() => setIsAccessModalOpen(true)}
+				existingSatellites={satellites}
 			/>
 
 			{/* Fleet Access Control Modal */}

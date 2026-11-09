@@ -630,6 +630,183 @@ app.get("/api/tle/:noradId", async (c) => {
 	return c.json({ error: "Satellite TLE not found" }, 404);
 });
 
+// Search satellites by name from CelesTrak with local catalog fallback & aliases
+app.get("/api/lookup/search", async (c) => {
+	const query = (c.req.query("name") || c.req.query("q") || "").trim();
+
+	if (!query) {
+		return c.json({ error: "Missing search query parameter ('name' or 'q')" }, 400);
+	}
+
+	if (query.length < 2 || query.length > 60) {
+		return c.json({ error: "Search query must be between 2 and 60 characters" }, 400);
+	}
+
+	if (!/^[a-zA-Z0-9\s\-_.()]+$/.test(query)) {
+		return c.json({ error: "Search query contains invalid characters" }, 400);
+	}
+
+	const normalizedQuery = query.toLowerCase();
+
+	const resultsMap = new Map<
+		number,
+		{
+			noradId: number;
+			name: string;
+			displayName: string;
+			tleLine1: string;
+			tleLine2: string;
+			category?: string;
+			frequency?: string;
+			transmissions?: SatelliteRecord["transmissions"];
+			color?: string;
+			source: "catalog" | "celestrak";
+		}
+	>();
+
+	// 1. Check local fleet first for fast response and rich metadata
+	try {
+		const localFleet = await getSatellitesFleet(c.env);
+		for (const s of localFleet) {
+			if (
+				s.name.toLowerCase().includes(normalizedQuery) ||
+				s.displayName.toLowerCase().includes(normalizedQuery) ||
+				s.noradId.toString() === query
+			) {
+				resultsMap.set(s.noradId, {
+					noradId: s.noradId,
+					name: s.name,
+					displayName: s.displayName || s.name,
+					tleLine1: s.tleLine1,
+					tleLine2: s.tleLine2,
+					category: s.category,
+					frequency: s.frequency,
+					transmissions: s.transmissions,
+					color: s.color,
+					source: "catalog",
+				});
+			}
+		}
+	} catch (err) {
+		console.warn("Error querying local fleet for search:", err);
+	}
+
+	// 2. Prepare CelesTrak query terms (with common acronym/alias expansion)
+	const queriesToTry = [query];
+	const aliasMap: Record<string, string[]> = {
+		hubble: ["HST"],
+		tiangong: ["CSS"],
+		iss: ["ISS (ZARYA)"],
+		webb: ["JWST"],
+	};
+
+	for (const [key, aliases] of Object.entries(aliasMap)) {
+		if (normalizedQuery.includes(key)) {
+			for (const a of aliases) {
+				if (!queriesToTry.includes(a)) {
+					queriesToTry.push(a);
+				}
+			}
+		}
+	}
+
+	// 3. Query CelesTrak gp.php?NAME=...
+	for (const q of queriesToTry) {
+		if (resultsMap.size >= 25) break;
+
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+		try {
+			const upstreamUrl = new URL("https://celestrak.org/NORAD/elements/gp.php");
+			upstreamUrl.searchParams.set("NAME", q);
+			upstreamUrl.searchParams.set("FORMAT", "TLE");
+
+			const res = await fetch(upstreamUrl.toString(), {
+				signal: controller.signal,
+				headers: { "User-Agent": "AstroPass/1.0" },
+			});
+
+			if (res.ok) {
+				const text = await res.text();
+				const lines = text
+					.split("\n")
+					.map((l) => l.trim())
+					.filter(Boolean);
+
+				for (let i = 0; i < lines.length - 1; i++) {
+					if (lines[i].startsWith("1 ") && lines[i + 1]?.startsWith("2 ") && i > 0) {
+						const satName = lines[i - 1].trim();
+						const tleLine1 = lines[i].trim();
+						const tleLine2 = lines[i + 1].trim();
+						const noradId = parseInt(tleLine1.substring(2, 7).trim(), 10);
+
+						if (!isNaN(noradId) && !resultsMap.has(noradId)) {
+							resultsMap.set(noradId, {
+								noradId,
+								name: satName,
+								displayName: satName,
+								tleLine1,
+								tleLine2,
+								source: "celestrak",
+							});
+						}
+						i += 1; // skip line 2
+					}
+					if (resultsMap.size >= 30) break;
+				}
+			}
+		} catch (e) {
+			console.warn("CelesTrak name search fetch error/timeout for query", q, e);
+		} finally {
+			clearTimeout(timeoutId);
+		}
+	}
+
+	// 4. If query is purely numeric (NORAD ID) and not found yet, also try CATNR
+	if (/^\d{1,7}$/.test(query) && resultsMap.size === 0) {
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 4000);
+			const catRes = await fetch(
+				`https://celestrak.org/NORAD/elements/gp.php?CATNR=${query}&FORMAT=TLE`,
+				{
+					signal: controller.signal,
+					headers: { "User-Agent": "AstroPass/1.0" },
+				}
+			);
+			clearTimeout(timeoutId);
+			if (catRes.ok) {
+				const text = await catRes.text();
+				const lines = text
+					.split("\n")
+					.map((l) => l.trim())
+					.filter(Boolean);
+				if (lines.length >= 3 && lines[1].startsWith("1 ") && lines[2].startsWith("2 ")) {
+					const noradId = parseInt(query, 10);
+					resultsMap.set(noradId, {
+						noradId,
+						name: lines[0],
+						displayName: lines[0],
+						tleLine1: lines[1],
+						tleLine2: lines[2],
+						source: "celestrak",
+					});
+				}
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	const results = Array.from(resultsMap.values()).slice(0, 30);
+	return c.json({
+		query,
+		count: results.length,
+		results,
+	});
+});
+
 // Lookup any satellite by NORAD catalog ID from CelesTrak
 app.get("/api/lookup/:noradId", async (c) => {
 	const noradParam = c.req.param("noradId");
