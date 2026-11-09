@@ -380,7 +380,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 
 					<div className="lookup-search-container">
 						<div className="lookup-search-input-wrap">
-							<Search size={15} className="lookup-search-icon" />
+							<Search size={16} className="lookup-search-icon" />
 							<input
 								type="text"
 								value={searchQuery}
@@ -393,6 +393,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 								}}
 								placeholder="Search satellite by name (e.g. Hubble, ISS, Starlink, NOAA)..."
 								className="input-field lookup-input"
+								style={{ paddingLeft: "46px", paddingRight: "40px" }}
 							/>
 							{searchQuery && (
 								<button
