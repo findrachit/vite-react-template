@@ -1,6 +1,15 @@
-import React, { useState } from "react";
-import { X, Plus, Search, Satellite, Sparkles, Check, AlertCircle, Lock } from "lucide-react";
-import type { SatelliteInfo } from "../types";
+import React, { useState, useMemo } from "react";
+import {
+	X,
+	Plus,
+	Search,
+	Satellite,
+	Check,
+	AlertCircle,
+	Lock,
+	Loader2,
+} from "lucide-react";
+import type { SatelliteInfo, SatelliteSearchResult } from "../types";
 
 interface AddSatelliteModalProps {
 	isOpen: boolean;
@@ -8,12 +17,20 @@ interface AddSatelliteModalProps {
 	onAddSatellite: (sat: SatelliteInfo) => void;
 	isAuthorized?: boolean;
 	onOpenAccessModal?: () => void;
+	existingSatellites?: SatelliteInfo[];
 }
 
-const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; name: string }> = [
+// Known enrichments for common satellites to auto-populate metadata
+const KNOWN_METADATA: Record<
+	number,
 	{
-		noradId: 20580,
-		name: "HST (Hubble Space Telescope)",
+		category?: string;
+		color?: string;
+		frequency?: string;
+		transmissions?: SatelliteInfo["transmissions"];
+	}
+> = {
+	20580: {
 		category: "Space Telescope",
 		color: "#3b82f6",
 		frequency: "2255.500 MHz (S-Band Telemetry)",
@@ -26,9 +43,7 @@ const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; nam
 			},
 		],
 	},
-	{
-		noradId: 48274,
-		name: "CSS (Tiangong Space Station)",
+	48274: {
 		category: "Space Station",
 		color: "#f59e0b",
 		frequency: "145.900 MHz (FM Voice) / 437.050 MHz (GMSK Telemetry)",
@@ -47,9 +62,7 @@ const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; nam
 			},
 		],
 	},
-	{
-		noradId: 33591,
-		name: "NOAA 19 (Weather Satellite)",
+	33591: {
 		category: "Earth Observation",
 		color: "#10b981",
 		frequency: "137.100 MHz (APT Weather Fax) / 1698.000 MHz (HRPT)",
@@ -68,9 +81,7 @@ const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; nam
 			},
 		],
 	},
-	{
-		noradId: 43013,
-		name: "NOAA 20 (JPSS-1)",
+	43013: {
 		category: "Earth Observation",
 		color: "#06b6d4",
 		frequency: "7812.000 MHz (HRD Telemetry)",
@@ -83,7 +94,43 @@ const POPULAR_SUGGESTIONS: Array<Partial<SatelliteInfo> & { noradId: number; nam
 			},
 		],
 	},
+	25544: {
+		category: "Space Station",
+		color: "#38bdf8",
+		frequency: "145.800 MHz (FM Voice) / 145.825 MHz (APRS)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.800 MHz",
+				band: "VHF",
+				description: "Voice Downlink & ARISS Crew Contact",
+			},
+			{
+				type: "APRS",
+				frequency: "145.825 MHz",
+				band: "VHF",
+				description: "AX.25 Packet Radio Digipeater",
+			},
+		],
+	},
+};
+
+const COLOR_PALETTE = [
+	"#38bdf8",
+	"#3b82f6",
+	"#10b981",
+	"#f59e0b",
+	"#ec4899",
+	"#8b5cf6",
+	"#06b6d4",
+	"#f97316",
+	"#14b8a6",
 ];
+
+function getPaletteColor(noradId: number): string {
+	const index = Math.abs(noradId) % COLOR_PALETTE.length;
+	return COLOR_PALETTE[index];
+}
 
 export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 	isOpen,
@@ -91,7 +138,18 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 	onAddSatellite,
 	isAuthorized = false,
 	onOpenAccessModal,
+	existingSatellites = [],
 }) => {
+	// Search by name state
+	const [searchQuery, setSearchQuery] = useState("");
+	const [lastSearchedQuery, setLastSearchedQuery] = useState("");
+	const [isSearching, setIsSearching] = useState(false);
+	const [searchResults, setSearchResults] = useState<SatelliteSearchResult[]>([]);
+	const [hasSearched, setHasSearched] = useState(false);
+	const [searchError, setSearchError] = useState<string | null>(null);
+	const [addedNoradIds, setAddedNoradIds] = useState<Set<number>>(new Set());
+
+	// Manual ID input state
 	const [noradInput, setNoradInput] = useState("");
 	const [nameInput, setNameInput] = useState("");
 	const [tle1Input, setTle1Input] = useState("");
@@ -100,7 +158,85 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 	const [isLoading, setIsLoading] = useState(false);
 	const [statusMessage, setStatusMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
+	const existingNoradSet = useMemo(() => {
+		return new Set((existingSatellites || []).map((s) => s.noradId));
+	}, [existingSatellites]);
+
 	if (!isOpen) return null;
+
+	const handleSearchByName = async () => {
+		const trimmed = searchQuery.trim();
+		if (!trimmed) {
+			setSearchError("Please enter a satellite name to search.");
+			return;
+		}
+
+		setIsSearching(true);
+		setSearchError(null);
+		setHasSearched(true);
+		setLastSearchedQuery(trimmed);
+
+		try {
+			const res = await fetch(`/api/lookup/search?q=${encodeURIComponent(trimmed)}`);
+			if (!res.ok) {
+				const errorData = await res.json().catch(() => ({}));
+				throw new Error(errorData.error || `Failed to search satellites for "${trimmed}"`);
+			}
+
+			const data = await res.json();
+			const results: SatelliteSearchResult[] = data.results || [];
+			setSearchResults(results);
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "Lookup failed";
+			setSearchError(message);
+			setSearchResults([]);
+		} finally {
+			setIsSearching(false);
+		}
+	};
+
+	const handleAddFromSearch = (sat: SatelliteSearchResult) => {
+		const noradId = sat.noradId;
+		const known = KNOWN_METADATA[noradId];
+
+		const newSat: SatelliteInfo = {
+			id: `sat-${noradId}-${Date.now()}`,
+			name: sat.name.trim() || `Satellite ${noradId}`,
+			displayName: sat.displayName?.trim() || sat.name.trim() || `Satellite ${noradId}`,
+			noradId,
+			color: sat.color || known?.color || getPaletteColor(noradId),
+			category: sat.category || known?.category || "User Tracked Asset",
+			frequency: sat.frequency || known?.frequency,
+			transmissions: sat.transmissions || known?.transmissions,
+			description: `Tracked satellite added via NORAD ID ${noradId}`,
+			tleLine1: sat.tleLine1.trim(),
+			tleLine2: sat.tleLine2.trim(),
+		};
+
+		setAddedNoradIds((prev) => new Set(prev).add(noradId));
+		onAddSatellite(newSat);
+		onClose();
+	};
+
+	const handleSelectForManual = (sat: SatelliteSearchResult) => {
+		const noradId = sat.noradId;
+		const known = KNOWN_METADATA[noradId];
+
+		setNoradInput(noradId.toString());
+		setNameInput(sat.displayName || sat.name);
+		setTle1Input(sat.tleLine1);
+		setTle2Input(sat.tleLine2);
+		setColorInput(sat.color || known?.color || getPaletteColor(noradId));
+		setStatusMessage({
+			type: "success",
+			text: `Loaded ${sat.displayName || sat.name} (NORAD #${noradId}) into manual form below.`,
+		});
+
+		const formEl = document.getElementById("manual-satellite-form");
+		if (formEl) {
+			formEl.scrollIntoView({ behavior: "smooth" });
+		}
+	};
 
 	const handleCelesTrakLookup = async (idToLookup?: number) => {
 		const targetId = idToLookup ? idToLookup.toString() : noradInput.trim();
@@ -120,10 +256,16 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 			}
 
 			const data = await res.json();
+			const noradNum = parseInt(targetId, 10);
+			const known = KNOWN_METADATA[noradNum];
+
 			setNameInput(data.name || `Satellite ${targetId}`);
 			setNoradInput(targetId);
 			setTle1Input(data.tleLine1);
 			setTle2Input(data.tleLine2);
+			if (known?.color) {
+				setColorInput(known.color);
+			}
 			setStatusMessage({
 				type: "success",
 				text: `Successfully fetched orbital TLE for ${data.name}!`,
@@ -151,7 +293,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 			return;
 		}
 
-		const matchingPreset = POPULAR_SUGGESTIONS.find((p) => p.noradId === noradId);
+		const known = KNOWN_METADATA[noradId];
 
 		const newSat: SatelliteInfo = {
 			id: `sat-${noradId}-${Date.now()}`,
@@ -159,9 +301,9 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 			displayName: nameInput.trim() || `Satellite ${noradId}`,
 			noradId,
 			color: colorInput,
-			category: matchingPreset?.category || "User Tracked Asset",
-			frequency: matchingPreset?.frequency,
-			transmissions: matchingPreset?.transmissions,
+			category: known?.category || "User Tracked Asset",
+			frequency: known?.frequency,
+			transmissions: known?.transmissions,
 			description: `Tracked satellite added via NORAD ID ${noradId}`,
 			tleLine1: tle1Input.trim(),
 			tleLine2: tle2Input.trim(),
@@ -179,7 +321,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 						<Plus className="icon-cyan" size={20} />
 						<h2 className="modal-title">Track Additional Satellite</h2>
 					</div>
-					<button className="close-btn" onClick={onClose}>
+					<button className="close-btn" onClick={onClose} aria-label="Close modal">
 						<X size={18} />
 					</button>
 				</div>
@@ -207,31 +349,160 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 					)}
 
 					<p className="modal-desc">
-						Enter any NORAD Catalog ID to auto-fetch the latest Two-Line Element (TLE) from CelesTrak, or choose from popular spacecraft below.
+						Search the CelesTrak catalog by name to find spacecraft and add them directly to your fleet, or configure a satellite using its NORAD Catalog ID.
 					</p>
 
-					{/* Popular suggestions */}
+					{/* Section 1: Satellite Lookup by Name */}
 					<div className="section-label">
-						<Sparkles size={14} className="icon-cyan" />
-						<span>Popular Satellites</span>
-					</div>
-					<div className="preset-grid">
-						{POPULAR_SUGGESTIONS.map((item) => (
-							<button
-								key={item.noradId}
-								type="button"
-								className="preset-btn"
-								onClick={() => handleCelesTrakLookup(item.noradId)}
-							>
-								<div className="preset-name">{item.name}</div>
-								<div className="preset-region">{item.category}</div>
-								<div className="preset-coords">NORAD #{item.noradId}</div>
-							</button>
-						))}
+						<Search size={14} className="icon-cyan" />
+						<span>Satellite Lookup</span>
 					</div>
 
-					{/* Form */}
-					<form onSubmit={handleSubmit} className="manual-form">
+					<div className="lookup-search-container">
+						<div className="lookup-search-input-wrap">
+							<Search size={15} className="lookup-search-icon" />
+							<input
+								type="text"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleSearchByName();
+									}
+								}}
+								placeholder="Search satellite by name (e.g. Hubble, ISS, Starlink, NOAA)..."
+								className="input-field lookup-input"
+							/>
+							{searchQuery && (
+								<button
+									type="button"
+									className="lookup-clear-btn"
+									onClick={() => {
+										setSearchQuery("");
+										setSearchResults([]);
+										setHasSearched(false);
+										setSearchError(null);
+									}}
+									title="Clear search"
+								>
+									<X size={14} />
+								</button>
+							)}
+						</div>
+						<button
+							type="button"
+							className="btn-lookup-search"
+							onClick={handleSearchByName}
+							disabled={isSearching || !searchQuery.trim()}
+						>
+							{isSearching ? (
+								<>
+									<Loader2 size={14} className="spinner-icon" />
+									<span>Searching...</span>
+								</>
+							) : (
+								<>
+									<Search size={14} />
+									<span>Search</span>
+								</>
+							)}
+						</button>
+					</div>
+
+					{/* Search Error */}
+					{searchError && (
+						<div className="alert-box alert-warning lookup-status-alert">
+							<AlertCircle size={15} />
+							<span>{searchError}</span>
+						</div>
+					)}
+
+					{/* Search Loading */}
+					{isSearching && (
+						<div className="lookup-loading">
+							<Loader2 size={18} className="spinner-icon" />
+							<span>Searching CelesTrak orbital catalog...</span>
+						</div>
+					)}
+
+					{/* Empty Results */}
+					{!isSearching && hasSearched && searchResults.length === 0 && !searchError && (
+						<div className="lookup-empty">
+							No satellites found matching &ldquo;{lastSearchedQuery}&rdquo;. Try another spacecraft name, acronym, or enter a NORAD catalog ID below.
+						</div>
+					)}
+
+					{/* Search Results List */}
+					{!isSearching && searchResults.length > 0 && (
+						<div className="lookup-results-container">
+							<div className="lookup-results-header">
+								<span>Found {searchResults.length} satellite{searchResults.length === 1 ? "" : "s"}</span>
+								<span className="lookup-hint">Click &ldquo;Add to Fleet&rdquo; to track immediately</span>
+							</div>
+							<div className="lookup-results-list">
+								{searchResults.map((sat) => {
+									const isAlreadyTracked =
+										existingNoradSet.has(sat.noradId) || addedNoradIds.has(sat.noradId);
+									return (
+										<div key={sat.noradId} className="lookup-result-card">
+											<div className="lookup-result-info">
+												<div className="lookup-result-name-row">
+													<span className="lookup-result-name" title={sat.displayName || sat.name}>
+														{sat.displayName || sat.name}
+													</span>
+													<span className="lookup-norad-badge">NORAD #{sat.noradId}</span>
+												</div>
+												<div className="lookup-result-meta">
+													{sat.category && <span className="lookup-tag">{sat.category}</span>}
+													{sat.frequency && <span className="lookup-freq">{sat.frequency}</span>}
+													<span className="lookup-source">
+														Source: {sat.source === "catalog" ? "Catalog" : "CelesTrak"}
+													</span>
+												</div>
+											</div>
+											<div className="lookup-result-actions">
+												<button
+													type="button"
+													className="btn-lookup-select"
+													onClick={() => handleSelectForManual(sat)}
+													title="Load into manual configuration form below"
+												>
+													Use ID &amp; TLE
+												</button>
+												<button
+													type="button"
+													className={`btn-lookup-add ${isAlreadyTracked ? "btn-already-added" : ""}`}
+													onClick={() => handleAddFromSearch(sat)}
+													title={isAlreadyTracked ? "Already in tracked fleet" : "Add directly to tracked fleet"}
+												>
+													{isAlreadyTracked ? (
+														<>
+															<Check size={14} />
+															<span>In Fleet</span>
+														</>
+													) : (
+														<>
+															<Plus size={14} />
+															<span>Add to Fleet</span>
+														</>
+													)}
+												</button>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					)}
+
+					{/* Divider between Search by Name and Manual Add by ID */}
+					<div className="modal-divider">
+						<span>OR ADD SATELLITE BY NORAD ID</span>
+					</div>
+
+					{/* Section 2: Manual NORAD ID Configuration (Preserved) */}
+					<form id="manual-satellite-form" onSubmit={handleSubmit} className="manual-form">
 						<div className="section-label">
 							<Satellite size={14} className="icon-blue" />
 							<span>Satellite Details</span>

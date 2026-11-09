@@ -27,6 +27,19 @@ export interface SatelliteInfo {
 	tleLine2: string;
 }
 
+export interface SatelliteSearchResult {
+	noradId: number;
+	name: string;
+	displayName?: string;
+	tleLine1: string;
+	tleLine2: string;
+	category?: string;
+	frequency?: string;
+	transmissions?: SatelliteTransmission[];
+	color?: string;
+	source: "catalog" | "celestrak";
+}
+
 export interface ObserverLocation {
 	name: string;
 	latitude: number;
