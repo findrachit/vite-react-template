@@ -319,8 +319,8 @@ async function isAuthorized(
  * Retrieves the satellite fleet from Cloudflare Workers KV.
  * If KV is uninitialized / empty, it self-seeds with defaultSatellites.
  */
-async function getSatellitesFleet(env: Env): Promise<SatelliteRecord[]> {
-	if (!env.SATELLITES_KV) {
+async function getSatellitesFleet(env?: Env): Promise<SatelliteRecord[]> {
+	if (!env || !env.SATELLITES_KV) {
 		return defaultSatellites as unknown as SatelliteRecord[];
 	}
 
@@ -630,7 +630,193 @@ app.get("/api/tle/:noradId", async (c) => {
 	return c.json({ error: "Satellite TLE not found" }, 404);
 });
 
-// Search satellites by name from CelesTrak with local catalog fallback & aliases
+// Curated prominent spacecraft for instant, high-quality substring matching
+const CURATED_SATELLITES: Array<{
+	noradId: number;
+	name: string;
+	displayName: string;
+	aliases?: string[];
+	category: string;
+	color: string;
+	frequency?: string;
+	transmissions?: SatelliteRecord["transmissions"];
+	tleLine1: string;
+	tleLine2: string;
+}> = [
+	{
+		noradId: 20580,
+		name: "HST",
+		displayName: "HST (Hubble Space Telescope)",
+		aliases: ["hubble", "hst", "telescope"],
+		category: "Space Telescope",
+		color: "#3b82f6",
+		frequency: "2255.500 MHz (S-Band Telemetry)",
+		transmissions: [
+			{
+				type: "S-Band Telemetry",
+				frequency: "2255.500 MHz",
+				band: "S-Band",
+				description: "Multiple Access Tracking & Telemetry",
+			},
+		],
+		tleLine1: "1 20580U 90037B   26312.93854003  .00007990  00000+0  24186-3 0  9998",
+		tleLine2: "2 20580  28.4712 170.1484 0001948 333.7369  26.3128 15.32230830810785",
+	},
+	{
+		noradId: 25544,
+		name: "ISS (ZARYA)",
+		displayName: "International Space Station",
+		aliases: ["iss", "zarya", "space station"],
+		category: "Space Station",
+		color: "#38bdf8",
+		frequency: "145.800 MHz (FM Voice & SSTV) / 145.825 MHz (APRS)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.800 MHz",
+				band: "VHF",
+				description: "Voice Downlink & ARISS Crew Contact",
+			},
+			{
+				type: "APRS",
+				frequency: "145.825 MHz",
+				band: "VHF",
+				description: "AX.25 Packet Radio Digipeater",
+			},
+		],
+		tleLine1: "1 25544U 98067A   26312.88495931  .00008565  00000+0  16189-3 0  9992",
+		tleLine2: "2 25544  51.6321 304.0500 0007248   4.0569 356.0477 15.49264925594183",
+	},
+	{
+		noradId: 48274,
+		name: "CSS (TIANHE)",
+		displayName: "CSS (Tiangong Space Station)",
+		aliases: ["tiangong", "css", "tianhe"],
+		category: "Space Station",
+		color: "#f59e0b",
+		frequency: "145.900 MHz (FM Voice) / 437.050 MHz (GMSK Telemetry)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.900 MHz",
+				band: "VHF",
+				description: "Crew Voice Downlink",
+			},
+			{
+				type: "GMSK Telemetry",
+				frequency: "437.050 MHz",
+				band: "UHF",
+				description: "Engineering Telemetry Beacon",
+			},
+		],
+		tleLine1: "1 48274U 21035A   26312.93676257  .00024984  00000+0  28547-3 0  9990",
+		tleLine2: "2 48274  41.4672 162.4421 0004603 278.9725  81.0593 15.61583706315775",
+	},
+	{
+		noradId: 33591,
+		name: "NOAA 19",
+		displayName: "NOAA 19 (Weather Satellite)",
+		aliases: ["noaa", "weather"],
+		category: "Earth Observation",
+		color: "#10b981",
+		frequency: "137.100 MHz (APT Weather Fax) / 1698.000 MHz (HRPT)",
+		transmissions: [
+			{
+				type: "APT Weather Fax",
+				frequency: "137.100 MHz",
+				band: "VHF",
+				description: "Analog Weather Satellite Image Broadcast",
+			},
+			{
+				type: "HRPT Telemetry",
+				frequency: "1698.000 MHz",
+				band: "L-Band",
+				description: "High Resolution Picture Telemetry",
+			},
+		],
+		tleLine1: "1 33591U 09005A   26312.90995994  .00000049  00000+0  45534-4 0  9994",
+		tleLine2: "2 33591  98.7799  18.5373 0010964 209.1028 150.9538 14.17809471345258",
+	},
+	{
+		noradId: 43013,
+		name: "NOAA 20 (JPSS-1)",
+		displayName: "NOAA 20 (JPSS-1)",
+		aliases: ["noaa", "jpss"],
+		category: "Earth Observation",
+		color: "#06b6d4",
+		frequency: "7812.000 MHz (HRD Telemetry)",
+		tleLine1: "1 43013U 17073A   26312.93854003  .00000020  00000+0  15037-3 0  9998",
+		tleLine2: "2 43013  98.7845  65.9575 0004954 203.4444 156.6552 14.94528538 75500",
+	},
+	{
+		noradId: 54234,
+		name: "NOAA 21 (JPSS-2)",
+		displayName: "NOAA 21 (JPSS-2)",
+		aliases: ["noaa", "jpss"],
+		category: "Earth Observation",
+		color: "#06b6d4",
+		frequency: "7812.000 MHz (HRD Telemetry)",
+		tleLine1: "1 54234U 22150A   26312.85843543 -.00000024  00000+0  14156-3 0  9991",
+		tleLine2: "2 54234 101.9991 327.1368 0008856 281.6311 252.0302 12.53207475377641",
+	},
+	{
+		noradId: 59051,
+		name: "METEOR-M2 4",
+		displayName: "Meteor M2-4",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#10b981",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 59051U 24039A   26312.31350663  .00000017  00000+0  27133-4 0  9996",
+		tleLine2: "2 59051  98.7230 269.9338 0008039 109.5265 250.6782 14.22442546139758",
+	},
+	{
+		noradId: 57166,
+		name: "METEOR-M2 3",
+		displayName: "Meteor M2-3",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#06b6d4",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 57166U 23091A   26312.34646257  .00000008  00000+0  22250-4 0  9993",
+		tleLine2: "2 57166  98.5908   4.2391 0005038 107.7515 252.4214 14.24055830175035",
+	},
+	{
+		noradId: 44387,
+		name: "METEOR-M2 2",
+		displayName: "Meteor M2-2",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#3b82f6",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 44387U 19038A   26312.31788851  .00000314  00000+0  15542-3 0  9999",
+		tleLine2: "2 44387  98.9291 301.8398 0001187  12.9114 347.2094 14.24399741381817",
+	},
+	{
+		noradId: 40069,
+		name: "METEOR-M 2",
+		displayName: "Meteor M2",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#f59e0b",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 40069U 14037A   26312.30261802  .00000187  00000+0  10472-3 0  9992",
+		tleLine2: "2 40069  98.5323 283.0810 0005678 350.2970   9.8097 14.21497266639794",
+	},
+	{
+		noradId: 50463,
+		name: "JWST",
+		displayName: "James Webb Space Telescope (JWST)",
+		aliases: ["webb", "jwst", "telescope"],
+		category: "Deep Space Telescope",
+		color: "#a855f7",
+		frequency: "2270.500 MHz (S-Band Direct)",
+		tleLine1: "1 50463U 21130A   26312.00000000  .00000000  00000+0  00000+0 0  9999",
+		tleLine2: "2 50463   0.0000   0.0000 0000000   0.0000   0.0000  0.00000000    01",
+	},
+];
+
+// Search satellites by name with fast substring matching and multi-provider fallback
 app.get("/api/lookup/search", async (c) => {
 	const query = (c.req.query("name") || c.req.query("q") || "").trim();
 
@@ -660,38 +846,11 @@ app.get("/api/lookup/search", async (c) => {
 			frequency?: string;
 			transmissions?: SatelliteRecord["transmissions"];
 			color?: string;
-			source: "catalog" | "celestrak";
+			source: "catalog" | "celestrak" | "tle-api";
 		}
 	>();
 
-	// 1. Check local fleet first for fast response and rich metadata
-	try {
-		const localFleet = await getSatellitesFleet(c.env);
-		for (const s of localFleet) {
-			if (
-				s.name.toLowerCase().includes(normalizedQuery) ||
-				s.displayName.toLowerCase().includes(normalizedQuery) ||
-				s.noradId.toString() === query
-			) {
-				resultsMap.set(s.noradId, {
-					noradId: s.noradId,
-					name: s.name,
-					displayName: s.displayName || s.name,
-					tleLine1: s.tleLine1,
-					tleLine2: s.tleLine2,
-					category: s.category,
-					frequency: s.frequency,
-					transmissions: s.transmissions,
-					color: s.color,
-					source: "catalog",
-				});
-			}
-		}
-	} catch (err) {
-		console.warn("Error querying local fleet for search:", err);
-	}
-
-	// 2. Prepare CelesTrak query terms (with common acronym/alias expansion)
+	// 1. Prepare search terms with alias expansions (e.g. Hubble -> HST, Tiangong -> CSS)
 	const queriesToTry = [query];
 	const aliasMap: Record<string, string[]> = {
 		hubble: ["HST"],
@@ -710,60 +869,194 @@ app.get("/api/lookup/search", async (c) => {
 		}
 	}
 
-	// 3. Query CelesTrak gp.php?NAME=...
-	for (const q of queriesToTry) {
-		if (resultsMap.size >= 25) break;
-
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-		try {
-			const upstreamUrl = new URL("https://celestrak.org/NORAD/elements/gp.php");
-			upstreamUrl.searchParams.set("NAME", q);
-			upstreamUrl.searchParams.set("FORMAT", "TLE");
-
-			const res = await fetch(upstreamUrl.toString(), {
-				signal: controller.signal,
-				headers: { "User-Agent": "AstroPass/1.0" },
-			});
-
-			if (res.ok) {
-				const text = await res.text();
-				const lines = text
-					.split("\n")
-					.map((l) => l.trim())
-					.filter(Boolean);
-
-				for (let i = 0; i < lines.length - 1; i++) {
-					if (lines[i].startsWith("1 ") && lines[i + 1]?.startsWith("2 ") && i > 0) {
-						const satName = lines[i - 1].trim();
-						const tleLine1 = lines[i].trim();
-						const tleLine2 = lines[i + 1].trim();
-						const noradId = parseInt(tleLine1.substring(2, 7).trim(), 10);
-
-						if (!isNaN(noradId) && !resultsMap.has(noradId)) {
-							resultsMap.set(noradId, {
-								noradId,
-								name: satName,
-								displayName: satName,
-								tleLine1,
-								tleLine2,
-								source: "celestrak",
-							});
-						}
-						i += 1; // skip line 2
-					}
-					if (resultsMap.size >= 30) break;
-				}
+	// Helper to check substring match
+	const matchesQuery = (text?: string, aliases?: string[]): boolean => {
+		if (!text) return false;
+		const lower = text.toLowerCase();
+		if (lower.includes(normalizedQuery)) return true;
+		for (const q of queriesToTry) {
+			if (lower.includes(q.toLowerCase())) return true;
+		}
+		if (aliases) {
+			for (const a of aliases) {
+				if (a.toLowerCase().includes(normalizedQuery)) return true;
 			}
-		} catch (e) {
-			console.warn("CelesTrak name search fetch error/timeout for query", q, e);
-		} finally {
-			clearTimeout(timeoutId);
+		}
+		return false;
+	};
+
+	// 2. Check curated prominent satellites (instant match)
+	for (const cur of CURATED_SATELLITES) {
+		if (
+			matchesQuery(cur.name, cur.aliases) ||
+			matchesQuery(cur.displayName, cur.aliases) ||
+			cur.noradId.toString() === query
+		) {
+			resultsMap.set(cur.noradId, {
+				noradId: cur.noradId,
+				name: cur.name,
+				displayName: cur.displayName,
+				tleLine1: cur.tleLine1,
+				tleLine2: cur.tleLine2,
+				category: cur.category,
+				frequency: cur.frequency,
+				transmissions: cur.transmissions,
+				color: cur.color,
+				source: "catalog",
+			});
 		}
 	}
 
-	// 4. If query is purely numeric (NORAD ID) and not found yet, also try CATNR
+	// 3. Check local fleet in KV/storage
+	try {
+		const localFleet = await getSatellitesFleet(c.env);
+		for (const s of localFleet) {
+			if (
+				matchesQuery(s.name) ||
+				matchesQuery(s.displayName) ||
+				s.noradId.toString() === query
+			) {
+				if (!resultsMap.has(s.noradId)) {
+					resultsMap.set(s.noradId, {
+						noradId: s.noradId,
+						name: s.name,
+						displayName: s.displayName || s.name,
+						tleLine1: s.tleLine1,
+						tleLine2: s.tleLine2,
+						category: s.category,
+						frequency: s.frequency,
+						transmissions: s.transmissions,
+						color: s.color,
+						source: "catalog",
+					});
+				}
+			}
+		}
+	} catch (err) {
+		console.warn("Error querying local fleet for search:", err);
+	}
+
+	// 4. Query fast REST TLE API (substring search across all tracked orbital objects)
+	await Promise.allSettled(
+		queriesToTry.map(async (searchTerm) => {
+			try {
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+				const url = new URL("https://tle.ivanstanojevic.me/api/tle/");
+				url.searchParams.set("search", searchTerm);
+				url.searchParams.set("page-size", "30");
+
+				const res = await fetch(url.toString(), {
+					signal: controller.signal,
+					headers: {
+						"User-Agent": "AstroPass/1.0",
+						Accept: "application/json",
+					},
+				});
+				clearTimeout(timeoutId);
+
+				if (res.ok) {
+					const data = (await res.json()) as {
+						member?: Array<{
+							satelliteId: number;
+							name: string;
+							line1: string;
+							line2: string;
+						}>;
+					};
+
+					if (Array.isArray(data.member)) {
+						for (const item of data.member) {
+							if (item.satelliteId && item.name && item.line1 && item.line2) {
+								if (!resultsMap.has(item.satelliteId)) {
+									// Enrich with curated metadata if available
+									const curated = CURATED_SATELLITES.find((c) => c.noradId === item.satelliteId);
+
+									resultsMap.set(item.satelliteId, {
+										noradId: item.satelliteId,
+										name: item.name.trim(),
+										displayName: curated?.displayName || item.name.trim(),
+										category: curated?.category,
+										frequency: curated?.frequency,
+										transmissions: curated?.transmissions,
+										color: curated?.color,
+										tleLine1: item.line1.trim(),
+										tleLine2: item.line2.trim(),
+										source: "tle-api",
+									});
+								}
+							}
+						}
+					}
+				}
+			} catch (err) {
+				console.warn("TLE API search error for term:", searchTerm, err);
+			}
+		})
+	);
+
+	// 5. Fallback to CelesTrak if TLE API didn't return matches
+	if (resultsMap.size === 0) {
+		for (const q of queriesToTry) {
+			if (resultsMap.size >= 25) break;
+
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+			try {
+				const upstreamUrl = new URL("https://celestrak.org/NORAD/elements/gp.php");
+				upstreamUrl.searchParams.set("NAME", q);
+				upstreamUrl.searchParams.set("FORMAT", "TLE");
+
+				const res = await fetch(upstreamUrl.toString(), {
+					signal: controller.signal,
+					headers: { "User-Agent": "AstroPass/1.0" },
+				});
+
+				if (res.ok) {
+					const text = await res.text();
+					const lines = text
+						.split("\n")
+						.map((l) => l.trim())
+						.filter(Boolean);
+
+					for (let i = 0; i < lines.length - 1; i++) {
+						if (lines[i].startsWith("1 ") && lines[i + 1]?.startsWith("2 ") && i > 0) {
+							const satName = lines[i - 1].trim();
+							const tleLine1 = lines[i].trim();
+							const tleLine2 = lines[i + 1].trim();
+							const noradId = parseInt(tleLine1.substring(2, 7).trim(), 10);
+
+							if (!isNaN(noradId) && !resultsMap.has(noradId)) {
+								const curated = CURATED_SATELLITES.find((c) => c.noradId === noradId);
+								resultsMap.set(noradId, {
+									noradId,
+									name: satName,
+									displayName: curated?.displayName || satName,
+									category: curated?.category,
+									frequency: curated?.frequency,
+									transmissions: curated?.transmissions,
+									color: curated?.color,
+									tleLine1,
+									tleLine2,
+									source: "celestrak",
+								});
+							}
+							i += 1;
+						}
+						if (resultsMap.size >= 30) break;
+					}
+				}
+			} catch (e) {
+				console.warn("CelesTrak name search fallback timeout/error:", q, e);
+			} finally {
+				clearTimeout(timeoutId);
+			}
+		}
+	}
+
+	// 6. If query is purely numeric (NORAD ID) and not found yet, also try CATNR
 	if (/^\d{1,7}$/.test(query) && resultsMap.size === 0) {
 		try {
 			const controller = new AbortController();
@@ -784,10 +1077,15 @@ app.get("/api/lookup/search", async (c) => {
 					.filter(Boolean);
 				if (lines.length >= 3 && lines[1].startsWith("1 ") && lines[2].startsWith("2 ")) {
 					const noradId = parseInt(query, 10);
+					const curated = CURATED_SATELLITES.find((c) => c.noradId === noradId);
 					resultsMap.set(noradId, {
 						noradId,
 						name: lines[0],
-						displayName: lines[0],
+						displayName: curated?.displayName || lines[0],
+						category: curated?.category,
+						frequency: curated?.frequency,
+						transmissions: curated?.transmissions,
+						color: curated?.color,
 						tleLine1: lines[1],
 						tleLine2: lines[2],
 						source: "celestrak",
@@ -799,7 +1097,16 @@ app.get("/api/lookup/search", async (c) => {
 		}
 	}
 
-	const results = Array.from(resultsMap.values()).slice(0, 30);
+	// Sort results: Put active satellites with rich metadata or shorter names first
+	const results = Array.from(resultsMap.values())
+		.sort((a, b) => {
+			const aIsDebris = a.name.includes("DEB") || (a.displayName && a.displayName.includes("DEB"));
+			const bIsDebris = b.name.includes("DEB") || (b.displayName && b.displayName.includes("DEB"));
+			if (aIsDebris !== bIsDebris) return aIsDebris ? 1 : -1;
+			return a.noradId - b.noradId;
+		})
+		.slice(0, 35);
+
 	return c.json({
 		query,
 		count: results.length,
