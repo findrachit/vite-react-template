@@ -3,7 +3,7 @@ import "./App.css";
 import defaultSatellitesJson from "../data/satellites.json";
 import type { SatelliteInfo, ObserverLocation, SatellitePass, LiveTelemetry } from "./types";
 import { calculatePasses, calculateLiveTelemetry, DEFAULT_PREDICTION_HOURS } from "./utils/satelliteTracker";
-import { TabType, resolveTabFromPath, getRouteForTab, ROUTE_PATHS, TAB_TITLES } from "./routes";
+import { TabType, resolveTabFromPath, ROUTE_PATHS, TAB_TITLES } from "./routes";
 import { Starfield } from "./components/Starfield";
 import { Header } from "./components/Header";
 import { NavigationTabs } from "./components/NavigationTabs";
@@ -101,7 +101,7 @@ export function App() {
 
 	const navigateToTab = useCallback((tab: TabType) => {
 		setActiveTab(tab);
-		const targetPath = getRouteForTab(tab, window.location.pathname);
+		const targetPath = ROUTE_PATHS[tab];
 		if (window.location.pathname !== targetPath) {
 			window.history.pushState({ tab }, "", targetPath);
 		}

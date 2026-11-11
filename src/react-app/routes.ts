@@ -4,7 +4,7 @@ export const ROUTE_PATHS: Record<TabType, string> = {
 	hero: "/next-upcoming-pass",
 	passes: "/upcoming-passes",
 	radar: "/sky-radar-and-dome",
-	fleet: "/tracked-flaat",
+	fleet: "/tracked-fleet",
 };
 
 export const TAB_TITLES: Record<TabType, string> = {
@@ -16,7 +16,7 @@ export const TAB_TITLES: Record<TabType, string> = {
 
 /**
  * Normalizes a pathname to one of the valid application tabs.
- * Supports exact paths as well as common aliases and typos.
+ * Supports exact paths as well as common aliases.
  */
 export function resolveTabFromPath(pathname: string): TabType {
 	const clean = pathname.trim().toLowerCase().replace(/\/+$/, "") || "/";
@@ -39,7 +39,6 @@ export function resolveTabFromPath(pathname: string): TabType {
 		case "/dome":
 			return "radar";
 
-		case "/tracked-flaat":
 		case "/tracked-fleet":
 		case "/fleet":
 		case "/satellites":
@@ -53,15 +52,8 @@ export function resolveTabFromPath(pathname: string): TabType {
 }
 
 /**
- * Returns the URL path for a given tab, respecting whether the user
- * arrived via /tracked-fleet vs /tracked-flaat.
+ * Returns the URL path for a given tab.
  */
-export function getRouteForTab(tab: TabType, currentPath?: string): string {
-	if (tab === "fleet") {
-		if (currentPath && currentPath.toLowerCase().includes("tracked-fleet")) {
-			return "/tracked-fleet";
-		}
-		return ROUTE_PATHS.fleet;
-	}
+export function getRouteForTab(tab: TabType): string {
 	return ROUTE_PATHS[tab];
 }

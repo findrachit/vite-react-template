@@ -1,6 +1,6 @@
 import React from "react";
 import { Clock, Radio, Radar, Layers } from "lucide-react";
-import { TabType, ROUTE_PATHS, getRouteForTab } from "../routes";
+import { TabType, ROUTE_PATHS } from "../routes";
 
 interface NavigationTabsProps {
 	activeTab: TabType;
@@ -25,8 +25,6 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
 		e.preventDefault();
 		onSelectTab(tab);
 	};
-
-	const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
 
 	return (
 		<nav className="section-tabs-bar" id="main-nav-tabs" aria-label="Dashboard Navigation">
@@ -77,7 +75,7 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
 
 				{/* 4. Tracked Fleet */}
 				<a
-					href={getRouteForTab("fleet", currentPath)}
+					href={ROUTE_PATHS.fleet}
 					role="tab"
 					aria-selected={activeTab === "fleet"}
 					className={`nav-tab-btn ${activeTab === "fleet" ? "active" : ""}`}
