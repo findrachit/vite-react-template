@@ -21,6 +21,7 @@ interface HeaderProps {
 	onOpenAccessModal: () => void;
 	timePeriodHours: number;
 	onSelectTimePeriod: (hours: number) => void;
+	onNavigateHome?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
 	onOpenAccessModal,
 	timePeriodHours,
 	onSelectTimePeriod,
+	onNavigateHome,
 }) => {
 	const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -54,13 +56,34 @@ export const Header: React.FC<HeaderProps> = ({
 			<div className="header-container">
 				{/* Brand */}
 				<div className="brand-group">
-					<div className="brand-icon-wrapper">
-						<Satellite className="brand-icon" />
-						<div className="pulse-ring" />
-					</div>
+					<a
+						href="/next-upcoming-pass"
+						className="brand-logo-link"
+						onClick={(e) => {
+							if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+							e.preventDefault();
+							onNavigateHome?.();
+						}}
+						title="Go to Next Upcoming Pass"
+					>
+						<div className="brand-icon-wrapper">
+							<Satellite className="brand-icon" />
+							<div className="pulse-ring" />
+						</div>
+					</a>
 					<div>
 						<div className="brand-title">
-							ASTRO<span className="text-cyan">PASS</span>
+							<a
+								href="/next-upcoming-pass"
+								className="brand-title-link"
+								onClick={(e) => {
+									if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+									e.preventDefault();
+									onNavigateHome?.();
+								}}
+							>
+								ASTRO<span className="text-cyan">PASS</span>
+							</a>
 							<div
 								className="live-pill-container"
 								title={`Prediction window: ${formatPredictionPeriod(timePeriodHours)} (click to change)`}

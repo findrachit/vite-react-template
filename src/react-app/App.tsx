@@ -3,6 +3,7 @@ import "./App.css";
 import defaultSatellitesJson from "../data/satellites.json";
 import type { SatelliteInfo, ObserverLocation, SatellitePass, LiveTelemetry } from "./types";
 import { calculatePasses, calculateLiveTelemetry, DEFAULT_PREDICTION_HOURS } from "./utils/satelliteTracker";
+import { TabType, resolveTabFromPath, ROUTE_PATHS, TAB_TITLES } from "./routes";
 import { Starfield } from "./components/Starfield";
 import { Header } from "./components/Header";
 import { NavigationTabs } from "./components/NavigationTabs";
@@ -59,13 +60,52 @@ export function App() {
 	});
 
 	// 3. UI and Modals State
-	const [activeTab, setActiveTab] = useState<"passes" | "radar" | "fleet">("passes");
+	const [activeTab, setActiveTab] = useState<TabType>(() => {
+		if (typeof window !== "undefined") {
+			return resolveTabFromPath(window.location.pathname);
+		}
+		return "hero";
+	});
 	const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 	const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 	const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
 	const [selectedPass, setSelectedPass] = useState<SatellitePass | null>(null);
 	const [selectedTransmissionType, setSelectedTransmissionType] = useState<string>("all");
 	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	// Synchronize URL and handle browser back/forward buttons
+	useEffect(() => {
+		const initialPath = window.location.pathname;
+		const matchedTab = resolveTabFromPath(initialPath);
+
+		if (initialPath === "/" || initialPath === "") {
+			window.history.replaceState({ tab: matchedTab }, "", ROUTE_PATHS.hero);
+		} else {
+			window.history.replaceState({ tab: matchedTab }, "", initialPath);
+		}
+
+		const handlePopState = (e: PopStateEvent) => {
+			const currentPath = window.location.pathname;
+			const targetTab = (e.state && e.state.tab) || resolveTabFromPath(currentPath);
+			setActiveTab(targetTab);
+		};
+
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, []);
+
+	// Update document title dynamically based on active view
+	useEffect(() => {
+		document.title = TAB_TITLES[activeTab] || "AstroPass";
+	}, [activeTab]);
+
+	const navigateToTab = useCallback((tab: TabType) => {
+		setActiveTab(tab);
+		const targetPath = ROUTE_PATHS[tab];
+		if (window.location.pathname !== targetPath) {
+			window.history.pushState({ tab }, "", targetPath);
+		}
+	}, []);
 
 	// 4. Access Control State
 	const [authToken, setAuthToken] = useState<string>(() => {
@@ -535,16 +575,16 @@ export function App() {
 		}
 	};
 
-	const handleSelectPassForRadar = (pass: SatellitePass) => {
+	const handleSelectPassForRadar = useCallback((pass: SatellitePass) => {
 		setSelectedPass(pass);
-		setActiveTab("radar");
+		navigateToTab("radar");
 		const tabsEl = document.getElementById("main-nav-tabs");
 		if (tabsEl) {
 			tabsEl.scrollIntoView({ behavior: "smooth" });
 		} else {
 			window.scrollTo({ top: 0, behavior: "smooth" });
 		}
-	};
+	}, [navigateToTab]);
 
 	const activeSelectedPass = useMemo(() => {
 		if (selectedPass && passes.some((p) => p.id === selectedPass.id)) {
@@ -584,30 +624,38 @@ export function App() {
 				onOpenAccessModal={() => setIsAccessModalOpen(true)}
 				timePeriodHours={timePeriodHours}
 				onSelectTimePeriod={handleSelectTimePeriod}
+				onNavigateHome={() => navigateToTab("hero")}
 			/>
 
 			{/* Main Dashboard Content */}
 			<main className="main-content">
-				{/* Top Hero: Real-time Pass Countdown & Overhead Banner */}
-				<PassCountdown
-					nextPass={nextPass}
-					activePass={activePass}
-					liveTelemetry={activePass ? liveTelemetries[activePass.satelliteId] : null}
-					onSelectPassForRadar={handleSelectPassForRadar}
-					selectedTransmissionType={selectedTransmissionType}
-					onSelectTransmissionType={setSelectedTransmissionType}
-					timePeriodHours={timePeriodHours}
-				/>
-
 				{/* Dashboard Navigation Tabs */}
 				<NavigationTabs
 					activeTab={activeTab}
-					onSelectTab={setActiveTab}
+					onSelectTab={navigateToTab}
 					passCount={passes.length}
 					satelliteCount={satellites.length}
+					hasActivePass={Boolean(activePass)}
 				/>
 
-				{/* Tab 1: Configured Pass Schedule */}
+				{/* Tab 1: Next Upcoming Pass (Hero View) */}
+				{activeTab === "hero" && (
+					<div className="hero-page-view">
+						<PassCountdown
+							nextPass={nextPass}
+							activePass={activePass}
+							liveTelemetry={activePass ? liveTelemetries[activePass.satelliteId] : null}
+							onSelectPassForRadar={handleSelectPassForRadar}
+							selectedTransmissionType={selectedTransmissionType}
+							onSelectTransmissionType={setSelectedTransmissionType}
+							timePeriodHours={timePeriodHours}
+							onViewAllPasses={() => navigateToTab("passes")}
+							passCount={passes.length}
+						/>
+					</div>
+				)}
+
+				{/* Tab 2: Configured Pass Schedule */}
 				{activeTab === "passes" && (
 					<PassList
 						passes={passes}
@@ -621,7 +669,7 @@ export function App() {
 					/>
 				)}
 
-				{/* Tab 2: Sky Radar & Polar Dome */}
+				{/* Tab 3: Sky Radar & Polar Dome */}
 				{activeTab === "radar" && (
 					<SkyRadar
 						passes={passes}
@@ -632,7 +680,7 @@ export function App() {
 					/>
 				)}
 
-				{/* Tab 3: Tracked Fleet Specifications & Telemetry */}
+				{/* Tab 4: Tracked Fleet Specifications & Telemetry */}
 				{activeTab === "fleet" && (
 					<SatelliteFleet
 						satellites={satellites}

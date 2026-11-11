@@ -110,6 +110,20 @@ body {
 	100% { transform: scale(0.95); opacity: 0; }
 }
 
+.brand-logo-link,
+.brand-title-link {
+	color: inherit;
+	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	transition: opacity 0.2s ease;
+}
+
+.brand-logo-link:hover,
+.brand-title-link:hover {
+	opacity: 0.88;
+}
+
 .brand-title {
 	font-size: 1.4rem;
 	font-weight: 800;
@@ -400,6 +414,7 @@ body {
 	transition: all 0.2s ease;
 	white-space: nowrap;
 	user-select: none;
+	text-decoration: none;
 }
 
 .nav-tab-btn:hover {
@@ -432,6 +447,68 @@ body {
 .nav-tab-btn.active .tab-badge {
 	background: rgba(56, 189, 248, 0.25);
 	color: #e0f2fe;
+}
+
+.tab-badge-live {
+	background: rgba(239, 68, 68, 0.22) !important;
+	color: #fca5a5 !important;
+	border: 1px solid rgba(239, 68, 68, 0.45);
+	animation: pulseLiveBadge 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseLiveBadge {
+	0%, 100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.75;
+		transform: scale(1.05);
+	}
+}
+
+.hero-page-view {
+	animation: fadeInHero 0.2s ease-out;
+}
+
+@keyframes fadeInHero {
+	from {
+		opacity: 0;
+		transform: translateY(3px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.hero-footer-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.btn-passes-jump {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	color: var(--text-main);
+	font-size: 0.8rem;
+	font-weight: 600;
+	padding: 8px 14px;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	text-decoration: none;
+}
+
+.btn-passes-jump:hover {
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.28);
+	color: #ffffff;
 }
 
 @media (max-width: 640px) {
