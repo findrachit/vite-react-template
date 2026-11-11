@@ -25,6 +25,8 @@ interface PassCountdownProps {
 	selectedTransmissionType?: string;
 	onSelectTransmissionType?: (type: string) => void;
 	timePeriodHours?: number;
+	onViewAllPasses?: () => void;
+	passCount?: number;
 }
 
 export const PassCountdown: React.FC<PassCountdownProps> = ({
@@ -35,6 +37,8 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	selectedTransmissionType,
 	onSelectTransmissionType,
 	timePeriodHours = 24,
+	onViewAllPasses,
+	passCount,
 }) => {
 	const [now, setNow] = useState(new Date());
 
@@ -53,6 +57,18 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 				<div className="empty-subtitle">
 					Try extending the prediction time window, lowering the minimum elevation filter, or checking your ground station coordinates.
 				</div>
+				{onViewAllPasses && (
+					<div style={{ marginTop: "18px" }}>
+						<button
+							type="button"
+							className="btn-passes-jump"
+							onClick={onViewAllPasses}
+						>
+							<Radio size={15} />
+							<span>View Pass Schedule</span>
+						</button>
+					</div>
+				)}
 			</div>
 		);
 	}
@@ -155,13 +171,25 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 						<span className="path-node">{activePass.endDirection} ({activePass.endAzimuth}°)</span>
 					</div>
 
-					<button
-						className="btn-radar-jump"
-						onClick={() => onSelectPassForRadar(activePass)}
-					>
-						<Radar size={15} />
-						<span>Open Sky Radar Track</span>
-					</button>
+					<div className="hero-footer-actions">
+						{onViewAllPasses && (
+							<button
+								type="button"
+								className="btn-passes-jump"
+								onClick={onViewAllPasses}
+							>
+								<Radio size={15} />
+								<span>View All Passes {passCount !== undefined ? `(${passCount})` : ""}</span>
+							</button>
+						)}
+						<button
+							className="btn-radar-jump"
+							onClick={() => onSelectPassForRadar(activePass)}
+						>
+							<Radar size={15} />
+							<span>Open Sky Radar Track</span>
+						</button>
+					</div>
 				</div>
 			</div>
 		);
@@ -335,13 +363,25 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 					</span>
 				</div>
 
-				<button
-					className="btn-radar-jump"
-					onClick={() => onSelectPassForRadar(nextPass)}
-				>
-					<Radar size={15} />
-					<span>Track on Sky Radar</span>
-				</button>
+				<div className="hero-footer-actions">
+					{onViewAllPasses && (
+						<button
+							type="button"
+							className="btn-passes-jump"
+							onClick={onViewAllPasses}
+						>
+							<Radio size={15} />
+							<span>View All Passes {passCount !== undefined ? `(${passCount})` : ""}</span>
+						</button>
+					)}
+					<button
+						className="btn-radar-jump"
+						onClick={() => onSelectPassForRadar(nextPass)}
+					>
+						<Radar size={15} />
+						<span>Track on Sky Radar</span>
+					</button>
+				</div>
 			</div>
 		</div>
 	);
