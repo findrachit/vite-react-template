@@ -2,7 +2,12 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import "./App.css";
 import defaultSatellitesJson from "../data/satellites.json";
 import type { SatelliteInfo, ObserverLocation, SatellitePass, LiveTelemetry } from "./types";
-import { calculatePasses, calculateLiveTelemetry, DEFAULT_PREDICTION_HOURS } from "./utils/satelliteTracker";
+import {
+	calculatePasses,
+	calculateLiveTelemetry,
+	DEFAULT_PREDICTION_HOURS,
+	DEFAULT_MIN_ELEVATION,
+} from "./utils/satelliteTracker";
 import { TabType, resolveTabFromPath, ROUTE_PATHS, TAB_TITLES } from "./routes";
 import { Starfield } from "./components/Starfield";
 import { Header } from "./components/Header";
@@ -291,7 +296,7 @@ export function App() {
 	const passes = useMemo(() => {
 		if (refreshKey < 0) return [];
 		const now = new Date();
-		return calculatePasses(satellites, location, now, timePeriodHours, 10);
+		return calculatePasses(satellites, location, now, timePeriodHours, DEFAULT_MIN_ELEVATION);
 	}, [satellites, location, refreshKey, timePeriodHours]);
 
 	const recomputePasses = useCallback(() => {

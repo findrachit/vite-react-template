@@ -12,6 +12,7 @@ import type {
 } from "../types";
 
 export const DEFAULT_PREDICTION_HOURS = 24;
+export const DEFAULT_MIN_ELEVATION = 5;
 
 export const TIME_PERIOD_OPTIONS: TimePeriodOption[] = [
 	{ hours: 12, label: "12 Hours (0.5 days)", shortLabel: "12H" },
@@ -220,7 +221,7 @@ export function calculatePasses(
 	observer: ObserverLocation,
 	startTime: Date = new Date(),
 	durationHours = DEFAULT_PREDICTION_HOURS,
-	minPeakElevation = 10
+	minPeakElevation = DEFAULT_MIN_ELEVATION
 ): SatellitePass[] {
 	const allPasses: SatellitePass[] = [];
 	const startMs = startTime.getTime();

@@ -19,6 +19,7 @@ import {
 	getActiveTransmission,
 	TIME_PERIOD_OPTIONS,
 	formatPredictionPeriod,
+	DEFAULT_MIN_ELEVATION,
 } from "../utils/satelliteTracker";
 
 interface PassListProps {
@@ -43,7 +44,7 @@ export const PassList: React.FC<PassListProps> = ({
 	onSelectTimePeriod,
 }) => {
 	const [selectedSatelliteId, setSelectedSatelliteId] = useState<string>("all");
-	const [minElevationFilter, setMinElevationFilter] = useState<number>(10);
+	const [minElevationFilter, setMinElevationFilter] = useState<number>(DEFAULT_MIN_ELEVATION);
 	const [visibleOnly, setVisibleOnly] = useState<boolean>(false);
 	const [timeMode, setTimeMode] = useState<"local" | "utc">("local");
 	const [localTransmissionType, setLocalTransmissionType] = useState<string>("all");
@@ -132,7 +133,7 @@ export const PassList: React.FC<PassListProps> = ({
 
 	const resetFilters = () => {
 		setSelectedSatelliteId("all");
-		setMinElevationFilter(10);
+		setMinElevationFilter(DEFAULT_MIN_ELEVATION);
 		setVisibleOnly(false);
 		handleSelectTransmission("all");
 		setCardTransmissionOverrides({});
@@ -225,7 +226,8 @@ export const PassList: React.FC<PassListProps> = ({
 								onChange={(e) => setMinElevationFilter(Number(e.target.value))}
 								className="select-field"
 							>
-								<option value={10}>All Passes (≥10°)</option>
+								<option value={5}>All Passes (≥5°)</option>
+								<option value={10}>Standard Passes (≥10°)</option>
 								<option value={25}>Good Passes (≥25°)</option>
 								<option value={50}>Overhead Passes (≥50°)</option>
 							</select>
@@ -320,7 +322,7 @@ export const PassList: React.FC<PassListProps> = ({
 					<div className="empty-subtitle">
 						{selectedTransmission !== "all"
 							? `No passes found supporting ${selectedTransmission} under current filters. Try selecting "All Modes" or lowering the minimum elevation.`
-							: `Try clearing the "Naked-Eye Visible" toggle or setting the minimum elevation back to 10°.`}
+							: `Try clearing the "Naked-Eye Visible" toggle or setting the minimum elevation back to 5°.`}
 					</div>
 					<button
 						className="btn-secondary mt-12"
