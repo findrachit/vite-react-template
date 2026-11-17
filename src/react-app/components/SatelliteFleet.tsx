@@ -236,8 +236,8 @@ export const SatelliteFleet: React.FC<SatelliteFleetProps> = ({
 										<div className="spec-row transmissions-spec-row">
 											<span className="spec-key">Transmissions & Frequencies:</span>
 											<div className="transmissions-spec-list">
-												{transmissions.map((t) => (
-													<div key={t.type} className="transmission-spec-item">
+												{transmissions.map((t, idx) => (
+													<div key={`${t.type}-${t.frequency}-${idx}`} className="transmission-spec-item">
 														<div className="spec-item-header">
 															<span className="spec-type-tag">{t.type}</span>
 															<span className="spec-freq-val highlight-cyan">

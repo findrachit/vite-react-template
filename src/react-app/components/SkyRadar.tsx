@@ -398,8 +398,8 @@ export const SkyRadar: React.FC<SkyRadarProps> = ({
 										<span>Downlink Transmissions:</span>
 									</div>
 									<div className="radar-trans-chips">
-										{transmissions.map((t) => (
-											<div key={t.type} className="radar-trans-chip" title={t.description || ""}>
+										{transmissions.map((t, idx) => (
+											<div key={`${t.type}-${t.frequency}-${idx}`} className="radar-trans-chip" title={t.description || ""}>
 												<span className="radar-trans-type">{t.type}</span>
 												<span className="radar-trans-freq highlight-cyan">{t.frequency}</span>
 												{t.band && <span className="radar-trans-band">{t.band}</span>}
