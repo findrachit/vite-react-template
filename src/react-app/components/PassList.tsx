@@ -454,11 +454,11 @@ export const PassList: React.FC<PassListProps> = ({
 												<div className="mode-title-group">
 													<span className="mode-label">Mode:</span>
 													<div className="trans-pill-group">
-														{transmissions.map((t) => {
+														{transmissions.map((t, idx) => {
 															const isActive = activeTrans?.type === t.type;
 															return (
 																<button
-																	key={t.type}
+																	key={`${t.type}-${t.frequency}-${idx}`}
 																	type="button"
 																	className={`trans-mode-pill ${isActive ? "active" : ""}`}
 																	onClick={(e) => {

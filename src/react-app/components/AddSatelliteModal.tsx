@@ -10,6 +10,7 @@ import {
 	Loader2,
 } from "lucide-react";
 import type { SatelliteInfo, SatelliteSearchResult } from "../types";
+import { KNOWN_METADATA } from "../utils/knownMetadata";
 
 interface AddSatelliteModalProps {
 	isOpen: boolean;
@@ -19,121 +20,6 @@ interface AddSatelliteModalProps {
 	onOpenAccessModal?: () => void;
 	existingSatellites?: SatelliteInfo[];
 }
-
-// Known enrichments for common satellites to auto-populate metadata
-const KNOWN_METADATA: Record<
-	number,
-	{
-		category?: string;
-		color?: string;
-		frequency?: string;
-		transmissions?: SatelliteInfo["transmissions"];
-	}
-> = {
-	20580: {
-		category: "Space Telescope",
-		color: "#3b82f6",
-		frequency: "2255.500 MHz (S-Band Telemetry)",
-		transmissions: [
-			{
-				type: "S-Band Telemetry",
-				frequency: "2255.500 MHz",
-				band: "S-Band",
-				description: "Multiple Access Tracking & Telemetry",
-			},
-		],
-	},
-	48274: {
-		category: "Space Station",
-		color: "#f59e0b",
-		frequency: "145.900 MHz (FM Voice) / 437.050 MHz (GMSK Telemetry)",
-		transmissions: [
-			{
-				type: "FM Voice",
-				frequency: "145.900 MHz",
-				band: "VHF",
-				description: "Crew Voice Downlink",
-			},
-			{
-				type: "GMSK Telemetry",
-				frequency: "437.050 MHz",
-				band: "UHF",
-				description: "Engineering Telemetry Beacon",
-			},
-		],
-	},
-	33591: {
-		category: "Earth Observation",
-		color: "#10b981",
-		frequency: "137.100 MHz (APT Weather Fax) / 1698.000 MHz (HRPT)",
-		transmissions: [
-			{
-				type: "APT Weather Fax",
-				frequency: "137.100 MHz",
-				band: "VHF",
-				description: "Analog Weather Satellite Image Broadcast",
-			},
-			{
-				type: "HRPT Telemetry",
-				frequency: "1698.000 MHz",
-				band: "L-Band",
-				description: "High Resolution Picture Telemetry",
-			},
-		],
-	},
-	43013: {
-		category: "Earth Observation",
-		color: "#06b6d4",
-		frequency: "7812.000 MHz (HRD Telemetry)",
-		transmissions: [
-			{
-				type: "HRD Telemetry",
-				frequency: "7812.000 MHz",
-				band: "X-Band",
-				description: "High Rate Data Direct Broadcast",
-			},
-		],
-	},
-	25544: {
-		category: "Space Station",
-		color: "#38bdf8",
-		frequency: "145.800 MHz (FM Voice) / 145.825 MHz (APRS)",
-		transmissions: [
-			{
-				type: "FM Voice",
-				frequency: "145.800 MHz",
-				band: "VHF",
-				description: "Voice Downlink & ARISS Crew Contact",
-			},
-			{
-				type: "APRS",
-				frequency: "145.825 MHz",
-				band: "VHF",
-				description: "AX.25 Packet Radio Digipeater",
-			},
-		],
-	},
-	59051: {
-		category: "Weather Satellite",
-		color: "#10b981",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-	},
-	57166: {
-		category: "Weather Satellite",
-		color: "#06b6d4",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-	},
-	44387: {
-		category: "Weather Satellite",
-		color: "#3b82f6",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-	},
-	40069: {
-		category: "Weather Satellite",
-		color: "#f59e0b",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-	},
-};
 
 const COLOR_PALETTE = [
 	"#38bdf8",

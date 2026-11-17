@@ -12,7 +12,7 @@
     "altitudeKm": 420,
     "inclinationDeg": 51.64,
     "periodMin": 92.9,
-    "frequency": "145.800 MHz (FM Voice & SSTV) / 145.825 MHz (APRS) / 437.525 MHz",
+    "frequency": "145.800 MHz (FM Voice) / 437.550 MHz (SSTV) / 145.825 MHz (APRS) / 437.525 MHz",
     "transmissions": [
       {
         "type": "FM Voice",
@@ -22,6 +22,12 @@
       },
       {
         "type": "SSTV",
+        "frequency": "437.550 MHz",
+        "band": "UHF",
+        "description": "Slow-Scan TV (ARISS Event Downlink, Robot 36 mode)"
+      },
+      {
+        "type": "SSTV (VHF)",
         "frequency": "145.800 MHz",
         "band": "VHF",
         "description": "Slow-Scan TV (ARISS Event Downlink, PD120 mode)"

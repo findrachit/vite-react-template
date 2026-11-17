@@ -20,6 +20,7 @@ import { LocationModal } from "./components/LocationModal";
 import { AddSatelliteModal } from "./components/AddSatelliteModal";
 import { FleetAccessModal } from "./components/FleetAccessModal";
 import { Check, AlertCircle, X, ShieldCheck } from "lucide-react";
+import { KNOWN_METADATA } from "./utils/knownMetadata";
 
 const STORAGE_KEY_LOCATION = "astropass_user_location";
 const STORAGE_KEY_SATELLITES = "astropass_custom_satellites";
@@ -34,6 +35,19 @@ const DEFAULT_OBSERVER: ObserverLocation = {
 	isGps: false,
 };
 
+function enrichSatelliteMetadata(sat: SatelliteInfo): SatelliteInfo {
+	const known = KNOWN_METADATA[sat.noradId];
+	if (!known) return sat;
+	return {
+		...sat,
+		displayName: sat.displayName && !sat.displayName.startsWith("Satellite ") ? sat.displayName : (known.displayName || sat.displayName),
+		category: sat.category && sat.category !== "Tracked Asset" && sat.category !== "User Tracked Asset" ? sat.category : (known.category || sat.category),
+		color: sat.color || known.color || "#38bdf8",
+		frequency: sat.frequency || known.frequency,
+		transmissions: sat.transmissions && sat.transmissions.length > 0 ? sat.transmissions : known.transmissions,
+	};
+}
+
 export function App() {
 	// 1. Satellites State
 	const [satellites, setSatellites] = useState<SatelliteInfo[]>(() => {
@@ -44,7 +58,9 @@ export function App() {
 				const custom = JSON.parse(saved) as SatelliteInfo[];
 				const ids = new Set(defaultList.map((s) => s.id));
 				const noradIds = new Set(defaultList.map((s) => s.noradId));
-				const extras = custom.filter((s) => !ids.has(s.id) && !noradIds.has(s.noradId));
+				const extras = custom
+					.filter((s) => !ids.has(s.id) && !noradIds.has(s.noradId))
+					.map(enrichSatelliteMetadata);
 				return [...defaultList, ...extras];
 			}
 		} catch {
@@ -242,7 +258,8 @@ export function App() {
 						}
 
 						if (unsynced.length > 0) {
-							setSatellites([...kvSats, ...unsynced]);
+							const enrichedUnsynced = unsynced.map(enrichSatelliteMetadata);
+							setSatellites([...kvSats.map(enrichSatelliteMetadata), ...enrichedUnsynced]);
 							return;
 						}
 					}
@@ -250,7 +267,7 @@ export function App() {
 					// ignore localStorage sync error
 				}
 
-				setSatellites(kvSats);
+				setSatellites(kvSats.map(enrichSatelliteMetadata));
 			} catch (err) {
 				console.warn("Using offline / initial satellite catalog:", err);
 			}

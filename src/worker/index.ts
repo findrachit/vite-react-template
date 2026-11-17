@@ -57,6 +57,335 @@ interface SatelliteRecord {
 	icon?: string;
 }
 
+// Curated prominent spacecraft for instant, high-quality substring matching & enrichment
+const CURATED_SATELLITES: Array<{
+	noradId: number;
+	name: string;
+	displayName: string;
+	aliases?: string[];
+	category: string;
+	color: string;
+	frequency?: string;
+	transmissions?: SatelliteRecord["transmissions"];
+	tleLine1: string;
+	tleLine2: string;
+}> = [
+	{
+		noradId: 20580,
+		name: "HST",
+		displayName: "HST (Hubble Space Telescope)",
+		aliases: ["hubble", "hst", "telescope"],
+		category: "Space Telescope",
+		color: "#3b82f6",
+		frequency: "2255.500 MHz (S-Band Telemetry)",
+		transmissions: [
+			{
+				type: "S-Band Telemetry",
+				frequency: "2255.500 MHz",
+				band: "S-Band",
+				description: "Multiple Access Tracking & Telemetry",
+			},
+		],
+		tleLine1: "1 20580U 90037B   26312.93854003  .00007990  00000+0  24186-3 0  9998",
+		tleLine2: "2 20580  28.4712 170.1484 0001948 333.7369  26.3128 15.32230830810785",
+	},
+	{
+		noradId: 25544,
+		name: "ISS (ZARYA)",
+		displayName: "International Space Station",
+		aliases: ["iss", "zarya", "space station"],
+		category: "Space Station",
+		color: "#38bdf8",
+		frequency: "145.800 MHz (FM Voice) / 437.550 MHz (SSTV) / 145.825 MHz (APRS) / 437.525 MHz",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.800 MHz",
+				band: "VHF",
+				description: "Amateur Radio Crew Contact / Voice Downlink",
+			},
+			{
+				type: "SSTV",
+				frequency: "437.550 MHz",
+				band: "UHF",
+				description: "Slow-Scan TV (ARISS Event Downlink, Robot 36 mode)",
+			},
+			{
+				type: "SSTV (VHF)",
+				frequency: "145.800 MHz",
+				band: "VHF",
+				description: "Slow-Scan TV (ARISS Event Downlink, PD120 mode)",
+			},
+			{
+				type: "APRS",
+				frequency: "145.825 MHz",
+				band: "VHF",
+				description: "AX.25 Packet Radio Digipeater (1200 bps)",
+			},
+			{
+				type: "Crossband Repeater",
+				frequency: "437.525 MHz",
+				band: "UHF",
+				description: "FM Voice Crossband Repeater Downlink",
+			},
+		],
+		tleLine1: "1 25544U 98067A   26312.88495931  .00008565  00000+0  16189-3 0  9992",
+		tleLine2: "2 25544  51.6321 304.0500 0007248   4.0569 356.0477 15.49264925594183",
+	},
+	{
+		noradId: 27607,
+		name: "SAUDISAT 1C (SO-50)",
+		displayName: "SO-50 (SaudiSat 1C)",
+		aliases: ["so-50", "so50", "saudisat", "saudisat 1c"],
+		category: "Amateur Radio / FM Repeater",
+		color: "#f97316",
+		frequency: "436.795 MHz (FM Downlink) / 145.850 MHz (FM Uplink)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "436.795 MHz",
+				band: "UHF",
+				description: "FM Voice Repeater Downlink (Uplink: 145.850 MHz with 67.0 Hz PL)",
+			},
+			{
+				type: "FM Uplink",
+				frequency: "145.850 MHz",
+				band: "VHF",
+				description: "Repeater Uplink (Requires 67.0 Hz PL tone; 74.4 Hz tone 2-sec arming)",
+			},
+		],
+		tleLine1: "1 27607U 02058C   26320.87505036  .00001222  00000+0  16110-3 0  9992",
+		tleLine2: "2 27607  64.5537  16.4743 0067773 234.2374 125.2419 14.83346806287109",
+	},
+	{
+		noradId: 33591,
+		name: "NOAA 19",
+		displayName: "NOAA 19 (Weather Satellite)",
+		aliases: ["noaa", "weather"],
+		category: "Earth Observation",
+		color: "#10b981",
+		frequency: "137.100 MHz (APT Weather Fax) / 1698.000 MHz (HRPT)",
+		transmissions: [
+			{
+				type: "APT Weather Fax",
+				frequency: "137.100 MHz",
+				band: "VHF",
+				description: "Analog Weather Satellite Image Broadcast",
+			},
+			{
+				type: "HRPT Telemetry",
+				frequency: "1698.000 MHz",
+				band: "L-Band",
+				description: "High Resolution Picture Telemetry",
+			},
+		],
+		tleLine1: "1 33591U 09005A   26312.90995994  .00000049  00000+0  45534-4 0  9994",
+		tleLine2: "2 33591  98.7799  18.5373 0010964 209.1028 150.9538 14.17809471345258",
+	},
+	{
+		noradId: 40069,
+		name: "METEOR-M 2",
+		displayName: "Meteor M2",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#f59e0b",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 40069U 14037A   26312.30261802  .00000187  00000+0  10472-3 0  9992",
+		tleLine2: "2 40069  98.5323 283.0810 0005678 350.2970   9.8097 14.21497266639794",
+	},
+	{
+		noradId: 43013,
+		name: "NOAA 20 (JPSS-1)",
+		displayName: "NOAA 20 (JPSS-1)",
+		aliases: ["noaa", "jpss"],
+		category: "Earth Observation",
+		color: "#06b6d4",
+		frequency: "7812.000 MHz (HRD Telemetry)",
+		tleLine1: "1 43013U 17073A   26312.93854003  .00000020  00000+0  15037-3 0  9998",
+		tleLine2: "2 43013  98.7845  65.9575 0004954 203.4444 156.6552 14.94528538 75500",
+	},
+	{
+		noradId: 43017,
+		name: "RADFXSAT (FOX-1B)",
+		displayName: "FOX-1B (RadFxSat / AO-91)",
+		aliases: ["fox-1b", "fox1b", "radfxsat", "ao-91", "ao91"],
+		category: "Amateur Radio / FM Repeater",
+		color: "#ec4899",
+		frequency: "145.960 MHz (FM Downlink) / 435.250 MHz (FM Uplink)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.960 MHz",
+				band: "VHF",
+				description: "FM Voice Repeater Downlink & DUV High-Speed Telemetry",
+			},
+			{
+				type: "FM Uplink",
+				frequency: "435.250 MHz",
+				band: "UHF",
+				description: "Repeater Uplink (Requires 67.0 Hz PL tone)",
+			},
+		],
+		tleLine1: "1 43017U 17073E   26321.10625487  .00008440  00000+0  35067-3 0  9999",
+		tleLine2: "2 43017  97.4448 185.1960 0145067 158.9397 201.7894 15.14869907488526",
+	},
+	{
+		noradId: 43803,
+		name: "JY1SAT (JO-97)",
+		displayName: "JO-97 (JY1Sat)",
+		aliases: ["jo-97", "jo97", "jy1sat", "jy1-sat"],
+		category: "Amateur Radio / Transponder",
+		color: "#14b8a6",
+		frequency: "145.855-145.875 MHz (Transponder Downlink) / 145.840 MHz (SSDV/SSTV)",
+		transmissions: [
+			{
+				type: "Linear Transponder",
+				frequency: "145.855-145.875 MHz",
+				band: "VHF",
+				description: "SSB/CW Inverting Transponder Downlink (Uplink: 435.100-435.120 MHz UHF)",
+			},
+			{
+				type: "SSTV",
+				frequency: "145.840 MHz",
+				band: "VHF",
+				description: "SSDV Images & Slow-Scan TV Downlink / 1200 bps BPSK Telemetry",
+			},
+		],
+		tleLine1: "1 43803U 18099AX  26320.41430596  .00019937  00000+0  52682-3 0  9994",
+		tleLine2: "2 43803  97.3942  24.1112 0006557  86.2933 273.9062 15.38445440436997",
+	},
+	{
+		noradId: 44387,
+		name: "METEOR-M2 2",
+		displayName: "Meteor M2-2",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#3b82f6",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 44387U 19038A   26312.31788851  .00000314  00000+0  15542-3 0  9999",
+		tleLine2: "2 44387  98.9291 301.8398 0001187  12.9114 347.2094 14.24399741381817",
+	},
+	{
+		noradId: 44909,
+		name: "RS-44",
+		displayName: "RS-44 (DOSAAF-85)",
+		aliases: ["rs-44", "rs44", "dosaaf-85", "dosaaf"],
+		category: "Amateur Radio / Transponder",
+		color: "#8b5cf6",
+		frequency: "435.610-435.670 MHz (Inverting Downlink) / 435.605 MHz (CW Beacon)",
+		transmissions: [
+			{
+				type: "Linear Transponder",
+				frequency: "435.610-435.670 MHz",
+				band: "UHF",
+				description: "SSB/CW Inverting Transponder Downlink (Uplink: 145.935-145.995 MHz VHF)",
+			},
+			{
+				type: "CW Beacon",
+				frequency: "435.605 MHz",
+				band: "UHF",
+				description: "CW Telemetry Beacon",
+			},
+		],
+		tleLine1: "1 44909U 19096E   26321.15977578  .00000029  00000+0  66696-4 0  9991",
+		tleLine2: "2 44909  82.5223 238.0418 0218011 146.4562 215.0566 12.79749982321916",
+	},
+	{
+		noradId: 48274,
+		name: "CSS (TIANHE)",
+		displayName: "CSS (Tiangong Space Station)",
+		aliases: ["tiangong", "css", "tianhe"],
+		category: "Space Station",
+		color: "#f59e0b",
+		frequency: "145.900 MHz (FM Voice) / 437.050 MHz (GMSK Telemetry)",
+		transmissions: [
+			{
+				type: "FM Voice",
+				frequency: "145.900 MHz",
+				band: "VHF",
+				description: "Crew Voice Downlink",
+			},
+			{
+				type: "GMSK Telemetry",
+				frequency: "437.050 MHz",
+				band: "UHF",
+				description: "Engineering Telemetry Beacon",
+			},
+		],
+		tleLine1: "1 48274U 21035A   26312.93676257  .00024984  00000+0  28547-3 0  9990",
+		tleLine2: "2 48274  41.4672 162.4421 0004603 278.9725  81.0593 15.61583706315775",
+	},
+	{
+		noradId: 50463,
+		name: "JWST",
+		displayName: "James Webb Space Telescope (JWST)",
+		aliases: ["webb", "jwst", "telescope"],
+		category: "Deep Space Telescope",
+		color: "#a855f7",
+		frequency: "2270.500 MHz (S-Band Direct)",
+		tleLine1: "1 50463U 21130A   26312.00000000  .00000000  00000+0  00000+0 0  9999",
+		tleLine2: "2 50463   0.0000   0.0000 0000000   0.0000   0.0000  0.00000000    01",
+	},
+	{
+		noradId: 54234,
+		name: "NOAA 21 (JPSS-2)",
+		displayName: "NOAA 21 (JPSS-2)",
+		aliases: ["noaa", "jpss"],
+		category: "Earth Observation",
+		color: "#06b6d4",
+		frequency: "7812.000 MHz (HRD Telemetry)",
+		tleLine1: "1 54234U 22150A   26312.85843543 -.00000024  00000+0  14156-3 0  9991",
+		tleLine2: "2 54234 101.9991 327.1368 0008856 281.6311 252.0302 12.53207475377641",
+	},
+	{
+		noradId: 57166,
+		name: "METEOR-M2 3",
+		displayName: "Meteor M2-3",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#06b6d4",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 57166U 23091A   26312.34646257  .00000008  00000+0  22250-4 0  9993",
+		tleLine2: "2 57166  98.5908   4.2391 0005038 107.7515 252.4214 14.24055830175035",
+	},
+	{
+		noradId: 59051,
+		name: "METEOR-M2 4",
+		displayName: "Meteor M2-4",
+		aliases: ["meteor", "weather"],
+		category: "Weather Satellite",
+		color: "#10b981",
+		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
+		tleLine1: "1 59051U 24039A   26312.31350663  .00000017  00000+0  27133-4 0  9996",
+		tleLine2: "2 59051  98.7230 269.9338 0008039 109.5265 250.6782 14.22442546139758",
+	},
+	{
+		noradId: 67287,
+		name: "LUCA (RS90S)",
+		displayName: "Luca / Luča-1 (RS90S)",
+		aliases: ["rs90s", "rs-90s", "luca", "luca-1", "luča-1", "luča"],
+		category: "CubeSat / Amateur Radio",
+		color: "#06b6d4",
+		frequency: "437.180 MHz (GMSK Telemetry & SSTV Images)",
+		transmissions: [
+			{
+				type: "GMSK Telemetry",
+				frequency: "437.180 MHz",
+				band: "UHF",
+				description: "2400 / 4800 / 9600 bps USP Telemetry & Sensor Beacon",
+			},
+			{
+				type: "SSTV",
+				frequency: "437.180 MHz",
+				band: "UHF",
+				description: "Slow-Scan TV Image Downlink (Robot 36 mode)",
+			},
+		],
+		tleLine1: "1 67287U 25313AR  26320.93526266  .00008935  00000+0  34078-3 0  9995",
+		tleLine2: "2 67287  97.3799  34.0450 0009279 167.4413 192.7059 15.26871893 49269",
+	},
+];
+
 /**
  * Validates NORAD Two-Line Element (TLE) syntax and catalog number alignment.
  */
@@ -217,22 +546,32 @@ function sanitizeAndValidateSatelliteInput(
 		}
 	}
 
+	// Fallback to curated metadata if category, frequency, or transmissions are omitted
+	const curatedMatch = CURATED_SATELLITES.find((c) => c.noradId === noradId);
+	const finalCategory = category !== "Tracked Asset" ? category : (curatedMatch?.category || category);
+	const finalFrequency = frequency || curatedMatch?.frequency;
+	const finalTransmissions = transmissions && transmissions.length > 0 ? transmissions : curatedMatch?.transmissions;
+	const finalDisplayName = displayName === name && curatedMatch?.displayName ? curatedMatch.displayName : displayName;
+	if (color === "#38bdf8" && curatedMatch?.color) {
+		color = curatedMatch.color;
+	}
+
 	// Strictly scoped record prevents mass assignment and prototype pollution
 	const sanitizedRecord: SatelliteRecord = {
 		id: satId,
 		name,
-		displayName,
+		displayName: finalDisplayName,
 		noradId,
 		color,
-		category,
+		category: finalCategory,
 		callsign,
 		designator,
 		orbitType,
 		altitudeKm,
 		inclinationDeg,
 		periodMin,
-		frequency,
-		transmissions,
+		frequency: finalFrequency,
+		transmissions: finalTransmissions,
 		description,
 		icon,
 		tleLine1: body.tleLine1.trim(),
@@ -327,7 +666,29 @@ async function getSatellitesFleet(env?: Env): Promise<SatelliteRecord[]> {
 	try {
 		const cached = await env.SATELLITES_KV.get<SatelliteRecord[]>(SATELLITES_KV_KEY, "json");
 		if (cached && Array.isArray(cached) && cached.length > 0) {
-			return cached;
+			const enriched = cached.map((sat) => {
+				const defaultMatch = defaultSatellites.find((d) => d.id === sat.id || d.noradId === sat.noradId);
+				if (defaultMatch) {
+					return {
+						...sat,
+						frequency: defaultMatch.frequency,
+						transmissions: defaultMatch.transmissions,
+					};
+				}
+				const curated = CURATED_SATELLITES.find((c) => c.noradId === sat.noradId);
+				if (curated && (!sat.transmissions || sat.transmissions.length === 0)) {
+					return {
+						...sat,
+						displayName: sat.displayName && !sat.displayName.startsWith("Satellite ") ? sat.displayName : curated.displayName,
+						category: sat.category && sat.category !== "Tracked Asset" ? sat.category : curated.category,
+						color: sat.color || curated.color,
+						frequency: sat.frequency || curated.frequency,
+						transmissions: curated.transmissions,
+					};
+				}
+				return sat;
+			});
+			return enriched;
 		}
 
 		// Self-seed KV with default satellites on initial access
@@ -630,192 +991,6 @@ app.get("/api/tle/:noradId", async (c) => {
 	return c.json({ error: "Satellite TLE not found" }, 404);
 });
 
-// Curated prominent spacecraft for instant, high-quality substring matching
-const CURATED_SATELLITES: Array<{
-	noradId: number;
-	name: string;
-	displayName: string;
-	aliases?: string[];
-	category: string;
-	color: string;
-	frequency?: string;
-	transmissions?: SatelliteRecord["transmissions"];
-	tleLine1: string;
-	tleLine2: string;
-}> = [
-	{
-		noradId: 20580,
-		name: "HST",
-		displayName: "HST (Hubble Space Telescope)",
-		aliases: ["hubble", "hst", "telescope"],
-		category: "Space Telescope",
-		color: "#3b82f6",
-		frequency: "2255.500 MHz (S-Band Telemetry)",
-		transmissions: [
-			{
-				type: "S-Band Telemetry",
-				frequency: "2255.500 MHz",
-				band: "S-Band",
-				description: "Multiple Access Tracking & Telemetry",
-			},
-		],
-		tleLine1: "1 20580U 90037B   26312.93854003  .00007990  00000+0  24186-3 0  9998",
-		tleLine2: "2 20580  28.4712 170.1484 0001948 333.7369  26.3128 15.32230830810785",
-	},
-	{
-		noradId: 25544,
-		name: "ISS (ZARYA)",
-		displayName: "International Space Station",
-		aliases: ["iss", "zarya", "space station"],
-		category: "Space Station",
-		color: "#38bdf8",
-		frequency: "145.800 MHz (FM Voice & SSTV) / 145.825 MHz (APRS)",
-		transmissions: [
-			{
-				type: "FM Voice",
-				frequency: "145.800 MHz",
-				band: "VHF",
-				description: "Voice Downlink & ARISS Crew Contact",
-			},
-			{
-				type: "APRS",
-				frequency: "145.825 MHz",
-				band: "VHF",
-				description: "AX.25 Packet Radio Digipeater",
-			},
-		],
-		tleLine1: "1 25544U 98067A   26312.88495931  .00008565  00000+0  16189-3 0  9992",
-		tleLine2: "2 25544  51.6321 304.0500 0007248   4.0569 356.0477 15.49264925594183",
-	},
-	{
-		noradId: 48274,
-		name: "CSS (TIANHE)",
-		displayName: "CSS (Tiangong Space Station)",
-		aliases: ["tiangong", "css", "tianhe"],
-		category: "Space Station",
-		color: "#f59e0b",
-		frequency: "145.900 MHz (FM Voice) / 437.050 MHz (GMSK Telemetry)",
-		transmissions: [
-			{
-				type: "FM Voice",
-				frequency: "145.900 MHz",
-				band: "VHF",
-				description: "Crew Voice Downlink",
-			},
-			{
-				type: "GMSK Telemetry",
-				frequency: "437.050 MHz",
-				band: "UHF",
-				description: "Engineering Telemetry Beacon",
-			},
-		],
-		tleLine1: "1 48274U 21035A   26312.93676257  .00024984  00000+0  28547-3 0  9990",
-		tleLine2: "2 48274  41.4672 162.4421 0004603 278.9725  81.0593 15.61583706315775",
-	},
-	{
-		noradId: 33591,
-		name: "NOAA 19",
-		displayName: "NOAA 19 (Weather Satellite)",
-		aliases: ["noaa", "weather"],
-		category: "Earth Observation",
-		color: "#10b981",
-		frequency: "137.100 MHz (APT Weather Fax) / 1698.000 MHz (HRPT)",
-		transmissions: [
-			{
-				type: "APT Weather Fax",
-				frequency: "137.100 MHz",
-				band: "VHF",
-				description: "Analog Weather Satellite Image Broadcast",
-			},
-			{
-				type: "HRPT Telemetry",
-				frequency: "1698.000 MHz",
-				band: "L-Band",
-				description: "High Resolution Picture Telemetry",
-			},
-		],
-		tleLine1: "1 33591U 09005A   26312.90995994  .00000049  00000+0  45534-4 0  9994",
-		tleLine2: "2 33591  98.7799  18.5373 0010964 209.1028 150.9538 14.17809471345258",
-	},
-	{
-		noradId: 43013,
-		name: "NOAA 20 (JPSS-1)",
-		displayName: "NOAA 20 (JPSS-1)",
-		aliases: ["noaa", "jpss"],
-		category: "Earth Observation",
-		color: "#06b6d4",
-		frequency: "7812.000 MHz (HRD Telemetry)",
-		tleLine1: "1 43013U 17073A   26312.93854003  .00000020  00000+0  15037-3 0  9998",
-		tleLine2: "2 43013  98.7845  65.9575 0004954 203.4444 156.6552 14.94528538 75500",
-	},
-	{
-		noradId: 54234,
-		name: "NOAA 21 (JPSS-2)",
-		displayName: "NOAA 21 (JPSS-2)",
-		aliases: ["noaa", "jpss"],
-		category: "Earth Observation",
-		color: "#06b6d4",
-		frequency: "7812.000 MHz (HRD Telemetry)",
-		tleLine1: "1 54234U 22150A   26312.85843543 -.00000024  00000+0  14156-3 0  9991",
-		tleLine2: "2 54234 101.9991 327.1368 0008856 281.6311 252.0302 12.53207475377641",
-	},
-	{
-		noradId: 59051,
-		name: "METEOR-M2 4",
-		displayName: "Meteor M2-4",
-		aliases: ["meteor", "weather"],
-		category: "Weather Satellite",
-		color: "#10b981",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-		tleLine1: "1 59051U 24039A   26312.31350663  .00000017  00000+0  27133-4 0  9996",
-		tleLine2: "2 59051  98.7230 269.9338 0008039 109.5265 250.6782 14.22442546139758",
-	},
-	{
-		noradId: 57166,
-		name: "METEOR-M2 3",
-		displayName: "Meteor M2-3",
-		aliases: ["meteor", "weather"],
-		category: "Weather Satellite",
-		color: "#06b6d4",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-		tleLine1: "1 57166U 23091A   26312.34646257  .00000008  00000+0  22250-4 0  9993",
-		tleLine2: "2 57166  98.5908   4.2391 0005038 107.7515 252.4214 14.24055830175035",
-	},
-	{
-		noradId: 44387,
-		name: "METEOR-M2 2",
-		displayName: "Meteor M2-2",
-		aliases: ["meteor", "weather"],
-		category: "Weather Satellite",
-		color: "#3b82f6",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-		tleLine1: "1 44387U 19038A   26312.31788851  .00000314  00000+0  15542-3 0  9999",
-		tleLine2: "2 44387  98.9291 301.8398 0001187  12.9114 347.2094 14.24399741381817",
-	},
-	{
-		noradId: 40069,
-		name: "METEOR-M 2",
-		displayName: "Meteor M2",
-		aliases: ["meteor", "weather"],
-		category: "Weather Satellite",
-		color: "#f59e0b",
-		frequency: "137.100 MHz (LRPT) / 137.900 MHz",
-		tleLine1: "1 40069U 14037A   26312.30261802  .00000187  00000+0  10472-3 0  9992",
-		tleLine2: "2 40069  98.5323 283.0810 0005678 350.2970   9.8097 14.21497266639794",
-	},
-	{
-		noradId: 50463,
-		name: "JWST",
-		displayName: "James Webb Space Telescope (JWST)",
-		aliases: ["webb", "jwst", "telescope"],
-		category: "Deep Space Telescope",
-		color: "#a855f7",
-		frequency: "2270.500 MHz (S-Band Direct)",
-		tleLine1: "1 50463U 21130A   26312.00000000  .00000000  00000+0  00000+0 0  9999",
-		tleLine2: "2 50463   0.0000   0.0000 0000000   0.0000   0.0000  0.00000000    01",
-	},
-];
-
 // Search satellites by name with fast substring matching and multi-provider fallback
 app.get("/api/lookup/search", async (c) => {
 	const query = (c.req.query("name") || c.req.query("q") || "").trim();
@@ -857,6 +1032,19 @@ app.get("/api/lookup/search", async (c) => {
 		tiangong: ["CSS"],
 		iss: ["ISS (ZARYA)"],
 		webb: ["JWST"],
+		"so-50": ["SAUDISAT 1C (SO-50)", "27607"],
+		so50: ["SAUDISAT 1C (SO-50)", "27607"],
+		"fox-1b": ["RADFXSAT (FOX-1B)", "43017"],
+		fox1b: ["RADFXSAT (FOX-1B)", "43017"],
+		radfxsat: ["RADFXSAT (FOX-1B)", "43017"],
+		"jo-97": ["JY1SAT (JO-97)", "43803"],
+		jo97: ["JY1SAT (JO-97)", "43803"],
+		jy1sat: ["JY1SAT (JO-97)", "43803"],
+		"rs-44": ["RS-44", "44909"],
+		rs44: ["RS-44", "44909"],
+		rs90s: ["LUCA (RS90S)", "67287"],
+		"rs-90s": ["LUCA (RS90S)", "67287"],
+		luca: ["LUCA (RS90S)", "67287"],
 	};
 
 	for (const [key, aliases] of Object.entries(aliasMap)) {

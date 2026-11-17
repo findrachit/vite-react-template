@@ -1,4 +1,5 @@
 import * as sat from "satellite.js";
+import { KNOWN_METADATA } from "./knownMetadata";
 import type {
 	SatelliteInfo,
 	ObserverLocation,
@@ -381,6 +382,7 @@ export function getSatelliteTransmissions(
 	item?: {
 		transmissions?: SatelliteTransmission[];
 		frequency?: string;
+		noradId?: number;
 	} | null
 ): SatelliteTransmission[] {
 	if (!item) return [];
@@ -388,7 +390,15 @@ export function getSatelliteTransmissions(
 		return item.transmissions;
 	}
 
-	const freqStr = item.frequency?.trim();
+	// Auto-enrich from known metadata registry if present
+	if (item.noradId && KNOWN_METADATA[item.noradId]?.transmissions) {
+		const knownTrans = KNOWN_METADATA[item.noradId].transmissions;
+		if (Array.isArray(knownTrans) && knownTrans.length > 0) {
+			return knownTrans;
+		}
+	}
+
+	const freqStr = (item.frequency || (item.noradId ? KNOWN_METADATA[item.noradId]?.frequency : undefined))?.trim();
 	if (!freqStr) {
 		return [{ type: "Beacon", frequency: "Unspecified" }];
 	}
