@@ -9,13 +9,19 @@ import {
 	Radar,
 	ChevronRight,
 } from "lucide-react";
-import type { SatellitePass, LiveTelemetry } from "../types";
+import type { SatellitePass, LiveTelemetry, IdealPassesSettings } from "../types";
 import {
 	formatDuration,
 	getSatelliteTransmissions,
 	getActiveTransmission,
 	formatPredictionPeriod,
 } from "../utils/satelliteTracker";
+import {
+	formatSkyAccessSummary,
+	getPassPrimaryDirection,
+	SKY_DIRECTION_INFO,
+	isPassIdeal,
+} from "../utils/idealPasses";
 
 interface PassCountdownProps {
 	nextPass: SatellitePass | null;
@@ -27,6 +33,8 @@ interface PassCountdownProps {
 	timePeriodHours?: number;
 	onViewAllPasses?: () => void;
 	passCount?: number;
+	idealPassesSettings?: IdealPassesSettings;
+	onOpenIdealPassesModal?: () => void;
 }
 
 export const PassCountdown: React.FC<PassCountdownProps> = ({
@@ -39,6 +47,8 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	timePeriodHours = 24,
 	onViewAllPasses,
 	passCount,
+	idealPassesSettings,
+	onOpenIdealPassesModal,
 }) => {
 	const [now, setNow] = useState(new Date());
 
@@ -48,17 +58,32 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	}, []);
 
 	if (!nextPass && !activePass) {
+		const isFiltered = idealPassesSettings && !idealPassesSettings.entireSky;
 		return (
 			<div className="countdown-card empty-state">
 				<Satellite className="empty-icon" size={32} />
 				<div className="empty-title">
-					No passes detected in the next {formatPredictionPeriod(timePeriodHours)}
+					{isFiltered
+						? `No ideal passes detected in ${formatSkyAccessSummary(idealPassesSettings)} in the next ${formatPredictionPeriod(timePeriodHours)}`
+						: `No passes detected in the next ${formatPredictionPeriod(timePeriodHours)}`}
 				</div>
 				<div className="empty-subtitle">
-					Try extending the prediction time window, lowering the minimum elevation filter, or checking your ground station coordinates.
+					{isFiltered
+						? `Try adjusting your balcony sky view directions, enabling overhead passes, or extending the prediction time window.`
+						: `Try extending the prediction time window, lowering the minimum elevation filter, or checking your ground station coordinates.`}
 				</div>
-				{onViewAllPasses && (
-					<div style={{ marginTop: "18px" }}>
+				<div className="empty-state-actions" style={{ marginTop: "18px", display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+					{isFiltered && onOpenIdealPassesModal && (
+						<button
+							type="button"
+							className="btn-passes-jump btn-ideal-jump"
+							onClick={onOpenIdealPassesModal}
+						>
+							<Compass size={15} />
+							<span>Configure Sky Access</span>
+						</button>
+					)}
+					{onViewAllPasses && (
 						<button
 							type="button"
 							className="btn-passes-jump"
@@ -67,8 +92,8 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 							<Radio size={15} />
 							<span>View Pass Schedule</span>
 						</button>
-					</div>
-				)}
+					)}
+				</div>
 			</div>
 		);
 	}
@@ -81,13 +106,25 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 		);
 		const activeTransmissions = getSatelliteTransmissions(activePass);
 		const activeTrans = getActiveTransmission(activeTransmissions, selectedTransmissionType);
+		const isEntireSky = !idealPassesSettings || idealPassesSettings.entireSky;
+		const isActiveIdeal = idealPassesSettings ? isPassIdeal(activePass, idealPassesSettings) : true;
+		const activePrimaryDir = getPassPrimaryDirection(activePass);
+		const activeDirInfo = SKY_DIRECTION_INFO[activePrimaryDir];
 
 		return (
 			<div className="countdown-card active-pass-glow">
 				<div className="pass-status-header">
-					<div className="active-badge">
-						<span className="pulsing-dot" />
-						<span>SATELLITE PASS IN PROGRESS • OVERHEAD</span>
+					<div className="active-badge-group">
+						<div className="active-badge">
+							<span className="pulsing-dot" />
+							<span>SATELLITE PASS IN PROGRESS • OVERHEAD</span>
+						</div>
+						{isActiveIdeal && !isEntireSky && (
+							<div className="ideal-tag-pill" title={`In view: ${activeDirInfo?.label}`}>
+								<Compass size={13} className="text-cyan" />
+								<span>Ideal • {activeDirInfo?.shortLabel} Sky</span>
+							</div>
+						)}
 					</div>
 					<div className="satellite-pill" style={{ borderColor: activePass.satelliteColor }}>
 						<Satellite size={14} style={{ color: activePass.satelliteColor }} />
@@ -202,6 +239,10 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	// Normal Next Pass Countdown
 	const nextTransmissions = getSatelliteTransmissions(nextPass);
 	const nextTrans = getActiveTransmission(nextTransmissions, selectedTransmissionType);
+	const isEntireSky = !idealPassesSettings || idealPassesSettings.entireSky;
+	const isIdealNext = idealPassesSettings ? isPassIdeal(nextPass, idealPassesSettings) : true;
+	const nextPrimaryDir = getPassPrimaryDirection(nextPass);
+	const nextDirInfo = SKY_DIRECTION_INFO[nextPrimaryDir];
 
 	const diffMs = nextPass.startTime.getTime() - now.getTime();
 	const diffSec = Math.max(0, Math.floor(diffMs / 1000));
@@ -214,9 +255,20 @@ export const PassCountdown: React.FC<PassCountdownProps> = ({
 	return (
 		<div className={`countdown-card ${isStartingSoon ? "starting-soon-glow" : ""}`}>
 			<div className="pass-status-header">
-				<div className="next-badge">
-					<Clock size={14} className="icon-cyan" />
-					<span>NEXT UPCOMING PASS</span>
+				<div className="next-badge-group">
+					<div className="next-badge">
+						<Clock size={14} className="icon-cyan" />
+						<span>{isIdealNext && !isEntireSky ? "NEXT IDEAL PASS" : "NEXT UPCOMING PASS"}</span>
+					</div>
+					{isIdealNext && !isEntireSky && (
+						<div
+							className="ideal-tag-pill"
+							title={`Ideal pass for your view: culminates in ${nextDirInfo?.label} (${nextPass.peakAzimuth}°)`}
+						>
+							<Compass size={13} className="text-cyan" />
+							<span>{nextDirInfo?.shortLabel} Sky</span>
+						</div>
+					)}
 				</div>
 				<div
 					className="satellite-pill"

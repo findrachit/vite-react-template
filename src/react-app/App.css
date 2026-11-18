@@ -3379,3 +3379,475 @@ input.lookup-input,
 	color: var(--accent-emerald);
 }
 
+/* ==========================================================================
+   Ideal Passes Feature & Sky Access Styles
+   ========================================================================== */
+
+.sky-access-header-btn {
+	border-color: rgba(56, 189, 248, 0.35);
+}
+
+.sky-access-header-btn:hover {
+	border-color: var(--accent-cyan);
+	box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+.filters-row-ideal-passes {
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px dashed rgba(56, 189, 248, 0.12);
+}
+
+.sky-direction-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.chip-overhead {
+	border-style: dashed;
+}
+
+.chip-overhead.chip-blocked {
+	background: rgba(239, 68, 68, 0.12);
+	border-color: rgba(239, 68, 68, 0.45);
+	color: #fca5a5;
+}
+
+.btn-configure-sky {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(56, 189, 248, 0.08);
+	border: 1px solid rgba(56, 189, 248, 0.3);
+	color: var(--accent-cyan);
+	padding: 5px 10px;
+	border-radius: 6px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.btn-configure-sky:hover {
+	background: rgba(56, 189, 248, 0.2);
+	border-color: var(--accent-cyan);
+	color: #ffffff;
+}
+
+.ideal-active-indicator {
+	background: rgba(56, 189, 248, 0.08);
+	border-color: rgba(56, 189, 248, 0.25);
+}
+
+.pass-badges-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.vis-pill-cyan {
+	background: rgba(56, 189, 248, 0.14);
+	color: var(--accent-cyan);
+	border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.ideal-passes-modal-card {
+	max-width: 680px;
+	width: 95%;
+}
+
+.modal-header-brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.modal-icon-glow {
+	width: 42px;
+	height: 42px;
+	border-radius: 12px;
+	background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.05) 100%);
+	border: 1px solid var(--border-glow);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+	flex-shrink: 0;
+}
+
+.ideal-passes-banner {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	background: rgba(56, 189, 248, 0.08);
+	border: 1px solid rgba(56, 189, 248, 0.25);
+	border-radius: 10px;
+	padding: 12px 14px;
+	font-size: 0.82rem;
+	line-height: 1.45;
+	color: #e2e8f0;
+	margin-bottom: 16px;
+}
+
+.banner-icon {
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.settings-section {
+	margin-top: 16px;
+}
+
+.sky-preset-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.sky-preset-card {
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid var(--border-subtle);
+	border-radius: 8px;
+	padding: 10px 12px;
+	text-align: left;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.sky-preset-card:hover {
+	border-color: rgba(56, 189, 248, 0.5);
+	background: rgba(20, 30, 55, 0.8);
+}
+
+.sky-preset-card.selected {
+	border-color: var(--accent-cyan);
+	background: rgba(56, 189, 248, 0.12);
+	box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+}
+
+.preset-card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.preset-card-title {
+	font-weight: 600;
+	font-size: 0.82rem;
+	color: var(--text-main);
+}
+
+.preset-card-sub {
+	font-size: 0.72rem;
+	color: var(--text-muted);
+	line-height: 1.35;
+}
+
+.check-icon {
+	flex-shrink: 0;
+}
+
+.sky-direction-options-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+	.sky-direction-options-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.direction-option-card {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid var(--border-subtle);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.direction-option-card.active {
+	border-color: rgba(56, 189, 248, 0.45);
+	background: rgba(56, 189, 248, 0.08);
+}
+
+.direction-option-card.inactive {
+	opacity: 0.65;
+}
+
+.direction-option-card:hover {
+	opacity: 1;
+	border-color: rgba(56, 189, 248, 0.35);
+}
+
+.sky-checkbox {
+	width: 16px;
+	height: 16px;
+	accent-color: var(--accent-cyan);
+	cursor: pointer;
+	margin-top: 2px;
+}
+
+.dir-checkbox-col {
+	flex-shrink: 0;
+}
+
+.dir-info-col {
+	flex: 1;
+	min-width: 0;
+}
+
+.dir-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.dir-name {
+	font-weight: 600;
+	font-size: 0.82rem;
+	color: var(--text-main);
+}
+
+.dir-az-badge {
+	font-size: 0.7rem;
+	font-family: var(--font-mono);
+	color: var(--accent-cyan);
+	background: rgba(56, 189, 248, 0.12);
+	padding: 2px 6px;
+	border-radius: 4px;
+	border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.dir-desc {
+	font-size: 0.72rem;
+	color: var(--text-muted);
+	margin-top: 3px;
+	display: block;
+	line-height: 1.35;
+}
+
+.overhead-option-card {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: rgba(15, 23, 42, 0.65);
+	border: 1px solid var(--border-subtle);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	margin-top: 8px;
+}
+
+.overhead-option-card.active {
+	border-color: rgba(56, 189, 248, 0.45);
+	background: rgba(56, 189, 248, 0.08);
+}
+
+.overhead-option-card.blocked {
+	border-color: rgba(239, 68, 68, 0.35);
+	background: rgba(239, 68, 68, 0.06);
+}
+
+.status-pill {
+	font-size: 0.68rem;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 12px;
+}
+
+.pill-enabled {
+	background: rgba(16, 185, 129, 0.18);
+	color: #34d399;
+	border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.pill-disabled {
+	background: rgba(239, 68, 68, 0.18);
+	color: #f87171;
+	border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.sky-visual-container {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	background: rgba(10, 16, 30, 0.8);
+	border: 1px solid var(--border-subtle);
+	border-radius: 10px;
+	padding: 14px;
+	margin-top: 8px;
+}
+
+@media (max-width: 500px) {
+	.sky-visual-container {
+		flex-direction: column;
+		text-align: center;
+	}
+}
+
+.sky-dome-preview-graphic {
+	width: 120px;
+	height: 120px;
+	flex-shrink: 0;
+}
+
+.sky-dome-svg {
+	width: 100%;
+	height: 100%;
+}
+
+.sky-visual-details {
+	flex: 1;
+}
+
+.sky-visual-heading {
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+	font-weight: 700;
+}
+
+.sky-visual-status {
+	font-size: 0.95rem;
+	font-weight: 700;
+	margin-top: 4px;
+	color: var(--accent-cyan);
+}
+
+.sky-visual-hint {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	margin-top: 6px;
+	line-height: 1.4;
+}
+
+.filter-stats-card {
+	background: rgba(15, 23, 42, 0.75);
+	border: 1px solid var(--border-subtle);
+	border-radius: 8px;
+	padding: 10px 14px;
+	margin-top: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.stats-main-text {
+	font-size: 0.84rem;
+	color: var(--text-main);
+}
+
+.stats-sub-text {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+.stats-warning-text {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.75rem;
+	color: var(--accent-amber);
+	margin-top: 2px;
+}
+
+/* Hero & Countdown Ideal Pass Elements */
+.next-badge-group,
+.active-badge-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.ideal-tag-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(56, 189, 248, 0.15);
+	color: var(--accent-cyan);
+	border: 1px solid rgba(56, 189, 248, 0.35);
+	border-radius: 12px;
+	padding: 3px 10px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+}
+
+.btn-ideal-jump {
+	background: rgba(56, 189, 248, 0.12);
+	border: 1px solid rgba(56, 189, 248, 0.35);
+	color: var(--accent-cyan);
+}
+
+.btn-ideal-jump:hover {
+	background: rgba(56, 189, 248, 0.22);
+	border-color: var(--accent-cyan);
+	color: #ffffff;
+}
+
+/* Radar Ideal Pass Elements */
+.radar-ideal-status-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	background: rgba(15, 23, 42, 0.6);
+	border: 1px solid var(--border-subtle);
+	border-radius: 8px;
+	padding: 8px 12px;
+	margin-bottom: 12px;
+}
+
+.radar-ideal-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.75rem;
+	font-weight: 600;
+}
+
+.radar-ideal-tag.pill-ideal {
+	color: var(--accent-cyan);
+}
+
+.radar-ideal-tag.pill-obstructed {
+	color: #f87171;
+}
+
+.btn-link-sky {
+	background: transparent;
+	border: none;
+	color: var(--accent-cyan);
+	font-size: 0.72rem;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: underline;
+	padding: 0;
+}
+
+.btn-link-sky:hover {
+	color: #7dd3fc;
+}
+
+.text-red {
+	color: var(--accent-red);
+}
+

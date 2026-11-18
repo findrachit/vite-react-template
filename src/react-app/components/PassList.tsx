@@ -10,8 +10,9 @@ import {
 	Radar,
 	SlidersHorizontal,
 	RotateCcw,
+	Building2,
 } from "lucide-react";
-import type { SatellitePass, SatelliteInfo } from "../types";
+import type { SatellitePass, SatelliteInfo, IdealPassesSettings, SkyDirection } from "../types";
 import {
 	formatDuration,
 	getSatelliteTransmissions,
@@ -21,6 +22,16 @@ import {
 	formatPredictionPeriod,
 	DEFAULT_MIN_ELEVATION,
 } from "../utils/satelliteTracker";
+import {
+	ALL_SKY_DIRECTIONS,
+	SKY_DIRECTION_INFO,
+	DEFAULT_IDEAL_PASSES_SETTINGS,
+	DEFAULT_OVERHEAD_THRESHOLD,
+	isPassIdeal,
+	isPassOverhead,
+	getPassPrimaryDirection,
+	formatSkyAccessSummary,
+} from "../utils/idealPasses";
 
 interface PassListProps {
 	passes: SatellitePass[];
@@ -31,6 +42,9 @@ interface PassListProps {
 	onSelectTransmissionType?: (type: string) => void;
 	timePeriodHours: number;
 	onSelectTimePeriod: (hours: number) => void;
+	idealPassesSettings?: IdealPassesSettings;
+	onSaveIdealPassesSettings?: (settings: IdealPassesSettings) => void;
+	onOpenIdealPassesModal?: () => void;
 }
 
 export const PassList: React.FC<PassListProps> = ({
@@ -42,6 +56,9 @@ export const PassList: React.FC<PassListProps> = ({
 	onSelectTransmissionType,
 	timePeriodHours,
 	onSelectTimePeriod,
+	idealPassesSettings = DEFAULT_IDEAL_PASSES_SETTINGS,
+	onSaveIdealPassesSettings,
+	onOpenIdealPassesModal,
 }) => {
 	const [selectedSatelliteId, setSelectedSatelliteId] = useState<string>("all");
 	const [minElevationFilter, setMinElevationFilter] = useState<number>(DEFAULT_MIN_ELEVATION);
@@ -88,6 +105,57 @@ export const PassList: React.FC<PassListProps> = ({
 		});
 	}, [satellites]);
 
+	const isEntireSkyActive =
+		idealPassesSettings.entireSky ||
+		(ALL_SKY_DIRECTIONS.every((d) => idealPassesSettings.directions.includes(d)) &&
+			idealPassesSettings.includeOverhead);
+
+	const handleToggleSkyDirection = (dir: SkyDirection) => {
+		if (!onSaveIdealPassesSettings) return;
+		const prev = idealPassesSettings;
+		// If currently entire sky, clicking a direction focuses on that direction
+		if (isEntireSkyActive) {
+			onSaveIdealPassesSettings({
+				entireSky: false,
+				directions: [dir],
+				includeOverhead: false,
+				maxElevationThreshold: prev.maxElevationThreshold ?? DEFAULT_OVERHEAD_THRESHOLD,
+			});
+			return;
+		}
+
+		const exists = prev.directions.includes(dir);
+		let nextDirs: SkyDirection[];
+		if (exists) {
+			nextDirs = prev.directions.filter((d) => d !== dir);
+		} else {
+			nextDirs = [...prev.directions, dir];
+		}
+
+		const hasAll = ALL_SKY_DIRECTIONS.every((d) => nextDirs.includes(d));
+		onSaveIdealPassesSettings({
+			...prev,
+			entireSky: hasAll && prev.includeOverhead,
+			directions: nextDirs,
+		});
+	};
+
+	const handleSelectEntireSky = () => {
+		onSaveIdealPassesSettings?.({ ...DEFAULT_IDEAL_PASSES_SETTINGS });
+	};
+
+	const handleToggleOverheadQuick = () => {
+		if (!onSaveIdealPassesSettings) return;
+		const prev = idealPassesSettings;
+		const nextOverhead = !prev.includeOverhead;
+		const hasAll = ALL_SKY_DIRECTIONS.every((d) => prev.directions.includes(d));
+		onSaveIdealPassesSettings({
+			...prev,
+			includeOverhead: nextOverhead,
+			entireSky: hasAll && nextOverhead,
+		});
+	};
+
 	// Filter passes
 	const filteredPasses = passes.filter((pass) => {
 		if (selectedSatelliteId !== "all" && pass.satelliteId !== selectedSatelliteId) {
@@ -104,6 +172,9 @@ export const PassList: React.FC<PassListProps> = ({
 			if (!matchesTransmissionType(passTrans, selectedTransmission)) {
 				return false;
 			}
+		}
+		if (!isPassIdeal(pass, idealPassesSettings)) {
+			return false;
 		}
 		return true;
 	});
@@ -137,6 +208,7 @@ export const PassList: React.FC<PassListProps> = ({
 		setVisibleOnly(false);
 		handleSelectTransmission("all");
 		setCardTransmissionOverrides({});
+		onSaveIdealPassesSettings?.({ ...DEFAULT_IDEAL_PASSES_SETTINGS });
 	};
 
 	return (
@@ -301,14 +373,99 @@ export const PassList: React.FC<PassListProps> = ({
 						</div>
 					)}
 				</div>
+
+				{/* Row 3: Ideal Passes (Sky Access & Balcony View) */}
+				<div className="filters-row filters-row-secondary filters-row-ideal-passes">
+					<div className="filter-group">
+						<span className="filter-label flex-align-gap">
+							<Compass size={13} className="text-cyan" />
+							<span>Ideal Passes:</span>
+						</span>
+						<div className="btn-tab-group sky-direction-tabs">
+							<button
+								type="button"
+								className={`filter-chip ${isEntireSkyActive ? "active" : ""}`}
+								onClick={handleSelectEntireSky}
+								title="Reset to Entire Sky (View all directions)"
+							>
+								Entire Sky ({passes.length})
+							</button>
+							{ALL_SKY_DIRECTIONS.map((dir) => {
+								const isChecked = !isEntireSkyActive && idealPassesSettings.directions.includes(dir);
+								const dirInfo = SKY_DIRECTION_INFO[dir];
+								const countInDir = passes.filter((p) => getPassPrimaryDirection(p) === dir).length;
+								return (
+									<button
+										key={dir}
+										type="button"
+										className={`filter-chip ${isChecked ? "active" : ""}`}
+										onClick={() => handleToggleSkyDirection(dir)}
+										title={`Toggle ${dirInfo.label} (${dirInfo.azimuthRange})`}
+									>
+										<span>{dirInfo.shortLabel}</span>
+										<span className="filter-count-badge">({countInDir})</span>
+									</button>
+								);
+							})}
+							<button
+								type="button"
+								className={`filter-chip chip-overhead ${!idealPassesSettings.includeOverhead && !isEntireSkyActive ? "chip-blocked" : ""}`}
+								onClick={handleToggleOverheadQuick}
+								title="Toggle overhead passes (≥60° zenith) - uncheck for balcony ceilings"
+							>
+								<span>Overhead (≥60°)</span>
+								<span className="filter-count-badge">
+									{idealPassesSettings.includeOverhead || isEntireSkyActive ? "Allowed" : "Blocked"}
+								</span>
+							</button>
+							{onOpenIdealPassesModal && (
+								<button
+									type="button"
+									className="btn-configure-sky"
+									onClick={onOpenIdealPassesModal}
+									title="Open full Sky Access & Balcony Setup modal"
+								>
+									<SlidersHorizontal size={13} />
+									<span>Configure View</span>
+								</button>
+							)}
+						</div>
+					</div>
+
+					{!isEntireSkyActive && (
+						<div className="transmission-active-indicator ideal-active-indicator">
+							<span className="active-mode-tag">
+								<Building2 size={12} className="text-cyan inline-icon" />
+								Sky Access: <strong>{formatSkyAccessSummary(idealPassesSettings)}</strong>
+							</span>
+							<button
+								type="button"
+								className="btn-clear-mode"
+								onClick={handleSelectEntireSky}
+								title="Reset to Entire Sky"
+							>
+								<RotateCcw size={12} />
+								<span>Show Entire Sky</span>
+							</button>
+						</div>
+					)}
+				</div>
 			</div>
 
 			{/* Pass count status */}
 			<div className="pass-count-summary">
-				Showing <strong>{filteredPasses.length}</strong> satellite passes
+				Showing <strong>{filteredPasses.length}</strong> {isEntireSkyActive ? "satellite passes" : "ideal passes"}
 				{selectedTransmission !== "all" && (
 					<span>
 						{" "}for <strong>{selectedTransmission}</strong>
+					</span>
+				)}
+				{!isEntireSkyActive && (
+					<span>
+						{" "}matching <strong>{formatSkyAccessSummary(idealPassesSettings)}</strong>
+						{passes.length > filteredPasses.length && (
+							<span className="text-muted"> ({passes.length - filteredPasses.length} obstructed passes hidden)</span>
+						)}
 					</span>
 				)}{" "}
 				across the next {formatPredictionPeriod(timePeriodHours)}
@@ -320,7 +477,9 @@ export const PassList: React.FC<PassListProps> = ({
 					<Satellite className="empty-icon" size={28} />
 					<div className="empty-title">No passes match current filters</div>
 					<div className="empty-subtitle">
-						{selectedTransmission !== "all"
+						{!isEntireSkyActive
+							? `No passes found matching your sky access (${formatSkyAccessSummary(idealPassesSettings)}). Try selecting additional sky directions or resetting to Entire Sky.`
+							: selectedTransmission !== "all"
 							? `No passes found supporting ${selectedTransmission} under current filters. Try selecting "All Modes" or lowering the minimum elevation.`
 							: `Try clearing the "Naked-Eye Visible" toggle or setting the minimum elevation back to 5°.`}
 					</div>
@@ -358,6 +517,11 @@ export const PassList: React.FC<PassListProps> = ({
 								const activeTrans =
 									transmissions.find((t) => t.type === activeTransType) || transmissions[0];
 
+								const isIdeal = isPassIdeal(pass, idealPassesSettings);
+								const primaryDir = getPassPrimaryDirection(pass);
+								const dirInfo = SKY_DIRECTION_INFO[primaryDir];
+								const isOverhead = isPassOverhead(pass, idealPassesSettings.maxElevationThreshold);
+
 								return (
 									<div
 										key={pass.id}
@@ -380,22 +544,41 @@ export const PassList: React.FC<PassListProps> = ({
 												</div>
 											</div>
 
-											{pass.visibility === "visible" ? (
-												<span className="vis-pill vis-pill-emerald">
-													<Sparkles size={13} />
-													<span>Naked Eye</span>
-												</span>
-											) : pass.visibility === "daylight" ? (
-												<span className="vis-pill vis-pill-amber">
-													<Radio size={13} />
-													<span>Daytime RF</span>
-												</span>
-											) : (
-												<span className="vis-pill vis-pill-violet">
-													<Compass size={13} />
-													<span>Earth Shadow</span>
-												</span>
-											)}
+											<div className="pass-badges-wrapper">
+												{isIdeal && !isEntireSkyActive && (
+													<span
+														className="vis-pill vis-pill-cyan"
+														title={`Ideal pass for your view (culminates in ${dirInfo.label} at ${pass.peakAzimuth}°)`}
+													>
+														<Compass size={13} />
+														<span>Ideal • {dirInfo.shortLabel}</span>
+													</span>
+												)}
+												{isOverhead && (
+													<span
+														className="vis-pill vis-pill-amber"
+														title={`Max elevation reaches ${pass.maxElevation}° (Overhead / Zenith)`}
+													>
+														Overhead
+													</span>
+												)}
+												{pass.visibility === "visible" ? (
+													<span className="vis-pill vis-pill-emerald">
+														<Sparkles size={13} />
+														<span>Naked Eye</span>
+													</span>
+												) : pass.visibility === "daylight" ? (
+													<span className="vis-pill vis-pill-amber">
+														<Radio size={13} />
+														<span>Daytime RF</span>
+													</span>
+												) : (
+													<span className="vis-pill vis-pill-violet">
+														<Compass size={13} />
+														<span>Earth Shadow</span>
+													</span>
+												)}
+											</div>
 										</div>
 
 										{/* Time Timeline & Elevation Gauge */}

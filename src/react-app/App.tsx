@@ -1,13 +1,24 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import "./App.css";
 import defaultSatellitesJson from "../data/satellites.json";
-import type { SatelliteInfo, ObserverLocation, SatellitePass, LiveTelemetry } from "./types";
+import type {
+	SatelliteInfo,
+	ObserverLocation,
+	SatellitePass,
+	LiveTelemetry,
+	IdealPassesSettings,
+} from "./types";
 import {
 	calculatePasses,
 	calculateLiveTelemetry,
 	DEFAULT_PREDICTION_HOURS,
 	DEFAULT_MIN_ELEVATION,
 } from "./utils/satelliteTracker";
+import {
+	loadIdealPassesSettings,
+	saveIdealPassesSettings,
+	isPassIdeal,
+} from "./utils/idealPasses";
 import { TabType, resolveTabFromPath, ROUTE_PATHS, TAB_TITLES } from "./routes";
 import { Starfield } from "./components/Starfield";
 import { Header } from "./components/Header";
@@ -19,6 +30,7 @@ import { SatelliteFleet } from "./components/SatelliteFleet";
 import { LocationModal } from "./components/LocationModal";
 import { AddSatelliteModal } from "./components/AddSatelliteModal";
 import { FleetAccessModal } from "./components/FleetAccessModal";
+import { IdealPassesModal } from "./components/IdealPassesModal";
 import { Check, AlertCircle, X, ShieldCheck } from "lucide-react";
 import { KNOWN_METADATA } from "./utils/knownMetadata";
 
@@ -167,6 +179,17 @@ export function App() {
 		} catch {
 			// ignore localStorage error
 		}
+	}, []);
+
+	// 6. Ideal Passes (Sky Access & Balcony Profile) State
+	const [idealPassesSettings, setIdealPassesSettings] = useState<IdealPassesSettings>(() => {
+		return loadIdealPassesSettings();
+	});
+	const [isIdealPassesModalOpen, setIsIdealPassesModalOpen] = useState(false);
+
+	const handleSaveIdealPassesSettings = useCallback((newSettings: IdealPassesSettings) => {
+		setIdealPassesSettings(newSettings);
+		saveIdealPassesSettings(newSettings);
 	}, []);
 
 	// Auto-dismiss toast notification after 5 seconds
@@ -348,7 +371,14 @@ export function App() {
 		let active: SatellitePass | null = null;
 		let next: SatellitePass | null = null;
 
-		for (const p of passes) {
+		// When restricted sky access is set (e.g. east & south balconies), focus on passes the observer can track
+		const candidatePasses = idealPassesSettings.entireSky
+			? passes
+			: passes.filter((p) => isPassIdeal(p, idealPassesSettings));
+
+		const effectivePasses = candidatePasses.length > 0 ? candidatePasses : passes;
+
+		for (const p of effectivePasses) {
 			const startMs = p.startTime.getTime();
 			const endMs = p.endTime.getTime();
 
@@ -362,7 +392,7 @@ export function App() {
 		}
 
 		return { activePass: active, nextPass: next };
-	}, [passes, currentTime]);
+	}, [passes, currentTime, idealPassesSettings]);
 
 	// Location saving handler
 	const handleSaveLocation = (newLoc: ObserverLocation) => {
@@ -647,6 +677,8 @@ export function App() {
 				timePeriodHours={timePeriodHours}
 				onSelectTimePeriod={handleSelectTimePeriod}
 				onNavigateHome={() => navigateToTab("hero")}
+				idealPassesSettings={idealPassesSettings}
+				onOpenIdealPassesModal={() => setIsIdealPassesModalOpen(true)}
 			/>
 
 			{/* Main Dashboard Content */}
@@ -655,7 +687,11 @@ export function App() {
 				<NavigationTabs
 					activeTab={activeTab}
 					onSelectTab={navigateToTab}
-					passCount={passes.length}
+					passCount={
+						idealPassesSettings.entireSky
+							? passes.length
+							: passes.filter((p) => isPassIdeal(p, idealPassesSettings)).length
+					}
 					satelliteCount={satellites.length}
 					hasActivePass={Boolean(activePass)}
 				/>
@@ -673,6 +709,8 @@ export function App() {
 							timePeriodHours={timePeriodHours}
 							onViewAllPasses={() => navigateToTab("passes")}
 							passCount={passes.length}
+							idealPassesSettings={idealPassesSettings}
+							onOpenIdealPassesModal={() => setIsIdealPassesModalOpen(true)}
 						/>
 					</div>
 				)}
@@ -688,6 +726,9 @@ export function App() {
 						onSelectTransmissionType={setSelectedTransmissionType}
 						timePeriodHours={timePeriodHours}
 						onSelectTimePeriod={handleSelectTimePeriod}
+						idealPassesSettings={idealPassesSettings}
+						onSaveIdealPassesSettings={handleSaveIdealPassesSettings}
+						onOpenIdealPassesModal={() => setIsIdealPassesModalOpen(true)}
 					/>
 				)}
 
@@ -699,6 +740,8 @@ export function App() {
 						onSelectPass={setSelectedPass}
 						liveTelemetries={liveTelemetries}
 						satellites={satellites}
+						idealPassesSettings={idealPassesSettings}
+						onOpenIdealPassesModal={() => setIsIdealPassesModalOpen(true)}
 					/>
 				)}
 
@@ -724,6 +767,17 @@ export function App() {
 				currentLocation={location}
 				onSaveLocation={handleSaveLocation}
 			/>
+
+			{/* Ideal Passes (Sky Access & Balcony View) Setting Modal */}
+			{isIdealPassesModalOpen && (
+				<IdealPassesModal
+					isOpen={isIdealPassesModalOpen}
+					onClose={() => setIsIdealPassesModalOpen(false)}
+					settings={idealPassesSettings}
+					onSaveSettings={handleSaveIdealPassesSettings}
+					passes={passes}
+				/>
+			)}
 
 			{/* Add Satellite Modal */}
 			<AddSatelliteModal
