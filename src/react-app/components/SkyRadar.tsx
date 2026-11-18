@@ -1,7 +1,13 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Radar, Play, Pause, Satellite, Radio } from "lucide-react";
-import type { SatellitePass, LiveTelemetry, SatelliteInfo } from "../types";
+import { Radar, Play, Pause, Satellite, Radio, Compass } from "lucide-react";
+import type { SatellitePass, LiveTelemetry, SatelliteInfo, IdealPassesSettings } from "../types";
 import { getSatelliteTransmissions } from "../utils/satelliteTracker";
+import {
+	isPassIdeal,
+	isPassOverhead,
+	getPassPrimaryDirection,
+	SKY_DIRECTION_INFO,
+} from "../utils/idealPasses";
 
 interface SkyRadarProps {
 	passes: SatellitePass[];
@@ -9,6 +15,8 @@ interface SkyRadarProps {
 	onSelectPass: (pass: SatellitePass) => void;
 	liveTelemetries: Record<string, LiveTelemetry | null>;
 	satellites: SatelliteInfo[];
+	idealPassesSettings?: IdealPassesSettings;
+	onOpenIdealPassesModal?: () => void;
 }
 
 export const SkyRadar: React.FC<SkyRadarProps> = ({
@@ -17,6 +25,8 @@ export const SkyRadar: React.FC<SkyRadarProps> = ({
 	onSelectPass,
 	liveTelemetries,
 	satellites,
+	idealPassesSettings,
+	onOpenIdealPassesModal,
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const [simProgress, setSimProgress] = useState<number | null>(null);
@@ -77,6 +87,47 @@ export const SkyRadar: React.FC<SkyRadarProps> = ({
 		ctx.beginPath();
 		ctx.arc(cx, cy, radius, 0, Math.PI * 2);
 		ctx.fill();
+
+		// 1b. Sky Access / Balcony View Quadrant Highlighting
+		if (idealPassesSettings && !idealPassesSettings.entireSky) {
+			const quadrants: { dir: "northern" | "eastern" | "southern" | "western"; startDeg: number; endDeg: number }[] = [
+				{ dir: "northern", startDeg: 315, endDeg: 45 },
+				{ dir: "eastern", startDeg: 45, endDeg: 135 },
+				{ dir: "southern", startDeg: 135, endDeg: 225 },
+				{ dir: "western", startDeg: 225, endDeg: 315 },
+			];
+
+			quadrants.forEach(({ dir, startDeg, endDeg }) => {
+				const isAllowed = idealPassesSettings.directions.includes(dir);
+				const startRad = ((startDeg - 90) * Math.PI) / 180;
+				const endRad = ((endDeg - 90) * Math.PI) / 180;
+
+				ctx.beginPath();
+				ctx.moveTo(cx, cy);
+				ctx.arc(cx, cy, radius, startRad, endRad);
+				ctx.closePath();
+
+				if (isAllowed) {
+					ctx.fillStyle = "rgba(56, 189, 248, 0.08)";
+				} else {
+					ctx.fillStyle = "rgba(239, 68, 68, 0.07)";
+				}
+				ctx.fill();
+			});
+
+			// If overhead passes are excluded, shade the center zenith area
+			if (!idealPassesSettings.includeOverhead) {
+				const zenithCutoffEl = idealPassesSettings.maxElevationThreshold ?? 60;
+				const zenithR = (1 - zenithCutoffEl / 90) * radius;
+				ctx.beginPath();
+				ctx.arc(cx, cy, zenithR, 0, Math.PI * 2);
+				ctx.fillStyle = "rgba(239, 68, 68, 0.16)";
+				ctx.fill();
+				ctx.strokeStyle = "rgba(239, 68, 68, 0.4)";
+				ctx.lineWidth = 1;
+				ctx.stroke();
+			}
+		}
 
 		// 2. Concentric Elevation Rings (0°, 30°, 60°, 90°)
 		const rings = [
@@ -267,7 +318,7 @@ export const SkyRadar: React.FC<SkyRadarProps> = ({
 				ctx.fillText(sat.displayName.split(" ")[0], coords.x, coords.y + 20);
 			}
 		});
-	}, [activePass, simProgress, liveTelemetries, satellites]);
+	}, [activePass, simProgress, liveTelemetries, satellites, idealPassesSettings]);
 
 	return (
 		<div className="radar-layout">
@@ -335,6 +386,41 @@ export const SkyRadar: React.FC<SkyRadarProps> = ({
 
 				{activePass ? (
 					<div className="active-pass-inspect">
+						{(() => {
+							const isIdeal = idealPassesSettings ? isPassIdeal(activePass, idealPassesSettings) : true;
+							const isEntireSky = !idealPassesSettings || idealPassesSettings.entireSky;
+							const passDir = getPassPrimaryDirection(activePass);
+							const dirInfo = SKY_DIRECTION_INFO[passDir];
+							const isOverhead = isPassOverhead(activePass, idealPassesSettings?.maxElevationThreshold);
+
+							if (isEntireSky) return null;
+
+							return (
+								<div className="radar-ideal-status-banner">
+									{isIdeal ? (
+										<span className="radar-ideal-tag pill-ideal">
+											<Compass size={13} className="text-cyan" />
+											<span>Ideal Pass for {dirInfo.shortLabel} Sky</span>
+										</span>
+									) : (
+										<span className="radar-ideal-tag pill-obstructed">
+											<Compass size={13} className="text-red" />
+											<span>Obstructed: {isOverhead ? "Ceiling / Overhead" : `${dirInfo.shortLabel} Sky Blocked`}</span>
+										</span>
+									)}
+									{onOpenIdealPassesModal && (
+										<button
+											type="button"
+											className="btn-link-sky"
+											onClick={onOpenIdealPassesModal}
+										>
+											Edit View
+										</button>
+									)}
+								</div>
+							);
+						})()}
+
 						<div
 							className="pass-inspect-badge"
 							style={{ borderColor: activePass.satelliteColor }}

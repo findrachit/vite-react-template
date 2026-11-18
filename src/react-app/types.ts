@@ -117,3 +117,12 @@ export interface TimePeriodOption {
 	shortLabel: string;
 }
 
+export type SkyDirection = "eastern" | "western" | "southern" | "northern";
+
+export interface IdealPassesSettings {
+	entireSky: boolean;
+	directions: SkyDirection[];
+	includeOverhead: boolean;
+	maxElevationThreshold?: number; // degrees, default 60
+}
+

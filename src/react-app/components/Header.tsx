@@ -7,9 +7,11 @@ import {
 	RefreshCw,
 	ShieldCheck,
 	Lock,
+	Compass,
 } from "lucide-react";
-import type { ObserverLocation } from "../types";
+import type { ObserverLocation, IdealPassesSettings } from "../types";
 import { TIME_PERIOD_OPTIONS, formatPredictionPeriod } from "../utils/satelliteTracker";
+import { formatSkyAccessSummary } from "../utils/idealPasses";
 
 interface HeaderProps {
 	location: ObserverLocation;
@@ -22,6 +24,8 @@ interface HeaderProps {
 	timePeriodHours: number;
 	onSelectTimePeriod: (hours: number) => void;
 	onNavigateHome?: () => void;
+	idealPassesSettings?: IdealPassesSettings;
+	onOpenIdealPassesModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
 	timePeriodHours,
 	onSelectTimePeriod,
 	onNavigateHome,
+	idealPassesSettings,
+	onOpenIdealPassesModal,
 }) => {
 	const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -134,6 +140,26 @@ export const Header: React.FC<HeaderProps> = ({
 						</div>
 						<span className="change-btn-tag">Change</span>
 					</button>
+
+					{/* Sky Access (Ideal Passes) Button */}
+					{onOpenIdealPassesModal && (
+						<button
+							className="ground-station-btn sky-access-header-btn"
+							onClick={onOpenIdealPassesModal}
+							title="Configure Sky Access & Balcony View (Ideal Passes)"
+						>
+							<Compass className="icon-cyan" size={16} />
+							<div className="ground-station-info">
+								<span className="station-label">
+									IDEAL PASSES • {idealPassesSettings?.entireSky ? "ENTIRE SKY" : "BALCONY"}
+								</span>
+								<span className="station-value">
+									{idealPassesSettings ? formatSkyAccessSummary(idealPassesSettings) : "Entire Sky"}
+								</span>
+							</div>
+							<span className="change-btn-tag">Filter</span>
+						</button>
+					)}
 
 					{/* Time Telemetry */}
 					<div className="clock-badge">
