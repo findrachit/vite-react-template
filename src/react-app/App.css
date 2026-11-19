@@ -2760,6 +2760,25 @@ input.lookup-input,
 	opacity: 0.75;
 }
 
+.lookup-source-satnogs {
+	color: #38bdf8;
+	font-weight: 600;
+	opacity: 1;
+}
+
+.lookup-transmitters-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 7px;
+	border-radius: 9999px;
+	background: rgba(56, 189, 248, 0.12);
+	border: 1px solid rgba(56, 189, 248, 0.3);
+	color: #38bdf8;
+	font-size: 0.65rem;
+	font-weight: 500;
+}
+
 .lookup-result-actions {
 	display: flex;
 	align-items: center;
