@@ -3,6 +3,8 @@
 // Runtime types generated with workerd@1.20260921.1 2025-10-08 nodejs_compat
 interface __BaseEnv_Env {
 	SATELLITES_KV: KVNamespace;
+	SATNOGS_API_TOKEN?: string;
+	FLEET_AUTH_TOKEN?: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

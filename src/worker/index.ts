@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import defaultSatellites from "../data/satellites.json";
+import {
+	fetchComprehensiveSatNOGSInfo,
+	fetchSatNOGSTransmitters,
+	fetchSatNOGSTle,
+	fetchSatNOGSTelemetry,
+	formatSatNOGSTransmitters,
+	SATNOGS_KV_TOKEN_KEY,
+} from "./satnogs";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -988,6 +996,31 @@ app.get("/api/tle/:noradId", async (c) => {
 		});
 	}
 
+	// Try SatNOGS DB for live TLE fallback
+	try {
+		const satnogsTle = await fetchSatNOGSTle(noradId, c.env);
+		if (satnogsTle?.tle1 && satnogsTle?.tle2) {
+			const freshTle = {
+				noradId,
+				name: satnogsTle.tle0 ? satnogsTle.tle0.replace(/^0\s+/, "") : `Satellite ${noradId}`,
+				tleLine1: satnogsTle.tle1,
+				tleLine2: satnogsTle.tle2,
+				source: "satnogs-db",
+				fetchedAt: new Date().toISOString(),
+			};
+			if (c.env.SATELLITES_KV) {
+				c.executionCtx.waitUntil(
+					c.env.SATELLITES_KV.put(`tle:${noradId}`, JSON.stringify(freshTle), {
+						expirationTtl: 86400,
+					})
+				);
+			}
+			return c.json(freshTle);
+		}
+	} catch (err) {
+		console.warn("SatNOGS TLE query fallback error:", err);
+	}
+
 	return c.json({ error: "Satellite TLE not found" }, 404);
 });
 
@@ -1302,7 +1335,7 @@ app.get("/api/lookup/search", async (c) => {
 	});
 });
 
-// Lookup any satellite by NORAD catalog ID from CelesTrak
+// Lookup any satellite by NORAD catalog ID with CelesTrak and SatNOGS DB integration
 app.get("/api/lookup/:noradId", async (c) => {
 	const noradParam = c.req.param("noradId");
 
@@ -1314,6 +1347,9 @@ app.get("/api/lookup/:noradId", async (c) => {
 	if (noradId < 1 || noradId > 9999999) {
 		return c.json({ error: "NORAD ID out of valid range" }, 400);
 	}
+
+	// Concurrently query SatNOGS DB for transmitter details, status, operator, and TLE
+	const satnogsPromise = fetchComprehensiveSatNOGSInfo(noradId, c.env).catch(() => null);
 
 	try {
 		const controller = new AbortController();
@@ -1329,29 +1365,251 @@ app.get("/api/lookup/:noradId", async (c) => {
 		});
 		clearTimeout(timeoutId);
 
-		if (!res.ok) {
-			return c.json({ error: `Satellite ${noradId} not found on CelesTrak` }, 404);
-		}
-		const text = await res.text();
-		const lines = text
-			.split("\n")
-			.map((l) => l.trim())
-			.filter(Boolean);
-		if (lines.length < 3 || !lines[1].startsWith("1 ") || !lines[2].startsWith("2 ")) {
-			return c.json({ error: "Invalid TLE data returned" }, 400);
+		const satnogsData = await satnogsPromise;
+
+		if (res.ok) {
+			const text = await res.text();
+			const lines = text
+				.split("\n")
+				.map((l) => l.trim())
+				.filter(Boolean);
+			if (lines.length >= 3 && lines[1].startsWith("1 ") && lines[2].startsWith("2 ")) {
+				return c.json({
+					noradId,
+					name: lines[0],
+					displayName: satnogsData?.displayName || lines[0],
+					tleLine1: lines[1],
+					tleLine2: lines[2],
+					source: "celestrak",
+					satnogs: satnogsData || undefined,
+					frequency: satnogsData?.frequency,
+					transmissions: satnogsData?.transmissions,
+					operator: satnogsData?.operator,
+					status: satnogsData?.status,
+					imageUrl: satnogsData?.imageUrl,
+				});
+			}
 		}
 
-		return c.json({
-			noradId,
-			name: lines[0],
-			tleLine1: lines[1],
-			tleLine2: lines[2],
-			source: "celestrak",
-		});
+		// If CelesTrak fails or returns 404, fallback to SatNOGS DB TLE if available
+		if (satnogsData && satnogsData.tleLine1 && satnogsData.tleLine2) {
+			return c.json({
+				noradId,
+				name: satnogsData.name,
+				displayName: satnogsData.displayName,
+				tleLine1: satnogsData.tleLine1,
+				tleLine2: satnogsData.tleLine2,
+				source: "satnogs",
+				satnogs: satnogsData,
+				frequency: satnogsData.frequency,
+				transmissions: satnogsData.transmissions,
+				operator: satnogsData.operator,
+				status: satnogsData.status,
+				imageUrl: satnogsData.imageUrl,
+			});
+		}
+
+		return c.json({ error: `Satellite ${noradId} not found on CelesTrak or SatNOGS DB` }, 404);
 	} catch (e) {
+		const satnogsData = await satnogsPromise;
+		if (satnogsData && satnogsData.tleLine1 && satnogsData.tleLine2) {
+			return c.json({
+				noradId,
+				name: satnogsData.name,
+				displayName: satnogsData.displayName,
+				tleLine1: satnogsData.tleLine1,
+				tleLine2: satnogsData.tleLine2,
+				source: "satnogs",
+				satnogs: satnogsData,
+				frequency: satnogsData.frequency,
+				transmissions: satnogsData.transmissions,
+				operator: satnogsData.operator,
+				status: satnogsData.status,
+				imageUrl: satnogsData.imageUrl,
+			});
+		}
 		const message = e instanceof Error && e.name === "AbortError" ? "Lookup request timed out" : "Lookup failed";
 		return c.json({ error: message }, 502);
 	}
+});
+
+// ==========================================
+// SatNOGS DB REST API Endpoints
+// ==========================================
+
+// SatNOGS DB status check (never leaks the token)
+app.get("/api/satnogs/status", async (c) => {
+	const envToken = c.env.SATNOGS_API_TOKEN?.trim();
+	let kvToken: string | null = null;
+	if (c.env.SATELLITES_KV) {
+		try {
+			kvToken = await c.env.SATELLITES_KV.get(SATNOGS_KV_TOKEN_KEY);
+		} catch {
+			// ignore
+		}
+	}
+
+	const hasEnvToken = !!(envToken && envToken.length > 0);
+	const hasKvToken = !!(kvToken && kvToken.trim().length > 0);
+	const isConfigured = hasEnvToken || hasKvToken;
+
+	return c.json({
+		status: "online",
+		configured: isConfigured,
+		source: hasEnvToken ? "env" : hasKvToken ? "kv" : "unconfigured",
+		apiBase: "https://db.satnogs.org/api",
+		endpoints: {
+			satellite: "/api/satnogs/satellite/:noradId",
+			transmitters: "/api/satnogs/transmitters/:noradId",
+			tle: "/api/satnogs/tle/:noradId",
+			telemetry: "/api/satnogs/telemetry/:noradId",
+		},
+	});
+});
+
+// SatNOGS DB: Full enriched satellite information by NORAD catalog ID
+app.get("/api/satnogs/satellite/:noradId", async (c) => {
+	const noradParam = c.req.param("noradId");
+	if (!noradParam || !/^\d{1,7}$/.test(noradParam)) {
+		return c.json({ error: "Invalid NORAD catalog ID. Must be 1-7 numeric digits." }, 400);
+	}
+	const noradId = parseInt(noradParam, 10);
+
+	// Check KV cache first (1 hour cache)
+	if (c.env.SATELLITES_KV) {
+		try {
+			const cached = await c.env.SATELLITES_KV.get(`satnogs:sat:${noradId}`, "json");
+			if (cached) {
+				return c.json(cached);
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	const info = await fetchComprehensiveSatNOGSInfo(noradId, c.env);
+	if (!info) {
+		return c.json({ error: `Satellite ${noradId} not found in SatNOGS DB` }, 404);
+	}
+
+	// Cache in KV
+	if (c.env.SATELLITES_KV) {
+		c.executionCtx.waitUntil(
+			c.env.SATELLITES_KV.put(`satnogs:sat:${noradId}`, JSON.stringify(info), {
+				expirationTtl: 3600,
+			})
+		);
+	}
+
+	return c.json(info);
+});
+
+// SatNOGS DB: Transmitters and RF communication specifications by NORAD ID
+app.get("/api/satnogs/transmitters/:noradId", async (c) => {
+	const noradParam = c.req.param("noradId");
+	if (!noradParam || !/^\d{1,7}$/.test(noradParam)) {
+		return c.json({ error: "Invalid NORAD catalog ID. Must be 1-7 numeric digits." }, 400);
+	}
+	const noradId = parseInt(noradParam, 10);
+
+	const rawTransmitters = await fetchSatNOGSTransmitters(noradId, c.env);
+	const formatted = formatSatNOGSTransmitters(rawTransmitters);
+
+	return c.json({
+		noradId,
+		count: formatted.length,
+		transmissions: formatted,
+		raw: rawTransmitters,
+	});
+});
+
+// SatNOGS DB: Latest Two-Line Element (TLE) set by NORAD ID
+app.get("/api/satnogs/tle/:noradId", async (c) => {
+	const noradParam = c.req.param("noradId");
+	if (!noradParam || !/^\d{1,7}$/.test(noradParam)) {
+		return c.json({ error: "Invalid NORAD catalog ID. Must be 1-7 numeric digits." }, 400);
+	}
+	const noradId = parseInt(noradParam, 10);
+
+	const tle = await fetchSatNOGSTle(noradId, c.env);
+	if (!tle) {
+		return c.json({ error: `TLE for satellite ${noradId} not found in SatNOGS DB` }, 404);
+	}
+
+	return c.json(tle);
+});
+
+// SatNOGS DB: Telemetry observations by NORAD ID
+app.get("/api/satnogs/telemetry/:noradId", async (c) => {
+	const noradParam = c.req.param("noradId");
+	if (!noradParam || !/^\d{1,7}$/.test(noradParam)) {
+		return c.json({ error: "Invalid NORAD catalog ID. Must be 1-7 numeric digits." }, 400);
+	}
+	const noradId = parseInt(noradParam, 10);
+	const limitParam = c.req.query("limit");
+	const limit = limitParam && /^\d+$/.test(limitParam) ? Math.min(parseInt(limitParam, 10), 50) : 10;
+
+	const telemetry = await fetchSatNOGSTelemetry(noradId, c.env, limit);
+	return c.json({
+		noradId,
+		count: telemetry.length,
+		frames: telemetry,
+	});
+});
+
+// SatNOGS DB: Secure token configuration in Workers KV (admin/authorized)
+app.post("/api/satnogs/token", async (c) => {
+	const authorized = await isAuthorized(c);
+	if (!authorized) {
+		return c.json({ error: "Unauthorized. Valid fleet access token required." }, 401);
+	}
+
+	if (!c.env.SATELLITES_KV) {
+		return c.json({ error: "KV storage is not bound to this Worker." }, 500);
+	}
+
+	let body: { token?: unknown };
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "Invalid JSON body" }, 400);
+	}
+
+	const rawToken = typeof body.token === "string" ? body.token.trim() : "";
+	if (!rawToken || rawToken.length < 16 || rawToken.length > 128) {
+		return c.json({ error: "Token must be a non-empty string between 16 and 128 characters." }, 400);
+	}
+
+	if (!/^[a-zA-Z0-9_\-]+$/.test(rawToken)) {
+		return c.json({ error: "Token contains invalid characters." }, 400);
+	}
+
+	await c.env.SATELLITES_KV.put(SATNOGS_KV_TOKEN_KEY, rawToken);
+
+	return c.json({
+		success: true,
+		message: "SatNOGS API token securely configured in Workers KV.",
+		source: "kv",
+	});
+});
+
+// SatNOGS DB: Remove token from Workers KV (admin/authorized)
+app.delete("/api/satnogs/token", async (c) => {
+	const authorized = await isAuthorized(c);
+	if (!authorized) {
+		return c.json({ error: "Unauthorized. Valid fleet access token required." }, 401);
+	}
+
+	if (!c.env.SATELLITES_KV) {
+		return c.json({ error: "KV storage is not bound to this Worker." }, 500);
+	}
+
+	await c.env.SATELLITES_KV.delete(SATNOGS_KV_TOKEN_KEY);
+
+	return c.json({
+		success: true,
+		message: "SatNOGS API token removed from Workers KV.",
+	});
 });
 
 export default app;
