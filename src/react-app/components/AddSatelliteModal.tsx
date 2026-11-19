@@ -271,7 +271,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 					)}
 
 					<p className="modal-desc">
-						Search the CelesTrak catalog by name to find spacecraft and add them directly to your fleet, or configure a satellite using its NORAD Catalog ID.
+						Search SatNOGS DB &amp; orbital catalogs by name or NORAD Catalog ID to find spacecraft with verified radio transmitters, telemetry frequencies, and orbital TLEs.
 					</p>
 
 					{/* Section 1: Satellite Lookup by Name */}
@@ -345,7 +345,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 					{isSearching && (
 						<div className="lookup-loading">
 							<Loader2 size={18} className="spinner-icon" />
-							<span>Searching CelesTrak orbital catalog...</span>
+							<span>Searching SatNOGS DB &amp; orbital catalogs...</span>
 						</div>
 					)}
 
@@ -379,7 +379,12 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 												<div className="lookup-result-meta">
 													{sat.category && <span className="lookup-tag">{sat.category}</span>}
 													{sat.frequency && <span className="lookup-freq">{sat.frequency}</span>}
-													<span className="lookup-source">
+													{sat.transmissions && sat.transmissions.length > 0 && (
+														<span className="lookup-transmitters-pill" title={`${sat.transmissions.length} active radio transmitters from SatNOGS DB`}>
+															📻 {sat.transmissions.length} transmitter{sat.transmissions.length > 1 ? "s" : ""}
+														</span>
+													)}
+													<span className={`lookup-source ${sat.source === "satnogs" ? "lookup-source-satnogs" : ""}`}>
 														Source: {sat.source === "catalog" ? "Fleet Catalog" : sat.source === "satnogs" ? "SatNOGS DB" : sat.source === "tle-api" ? "NORAD / CelesTrak" : "CelesTrak"}
 													</span>
 												</div>
@@ -450,7 +455,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 										disabled={isLoading}
 									>
 										<Search size={14} />
-										<span>{isLoading ? "Fetching..." : "Fetch TLE"}</span>
+										<span>{isLoading ? "Fetching..." : "Fetch SatNOGS & TLE"}</span>
 									</button>
 								</div>
 							</div>

@@ -1054,7 +1054,7 @@ app.get("/api/lookup/search", async (c) => {
 			frequency?: string;
 			transmissions?: SatelliteRecord["transmissions"];
 			color?: string;
-			source: "catalog" | "celestrak" | "tle-api";
+			source: "catalog" | "celestrak" | "tle-api" | "satnogs";
 		}
 	>();
 
@@ -1277,44 +1277,66 @@ app.get("/api/lookup/search", async (c) => {
 		}
 	}
 
-	// 6. If query is purely numeric (NORAD ID) and not found yet, also try CATNR
+	// 6. If query is purely numeric (NORAD ID), query SatNOGS DB and CelesTrak
 	if (/^\d{1,7}$/.test(query) && resultsMap.size === 0) {
+		const noradId = parseInt(query, 10);
 		try {
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 4000);
-			const catRes = await fetch(
-				`https://celestrak.org/NORAD/elements/gp.php?CATNR=${query}&FORMAT=TLE`,
-				{
-					signal: controller.signal,
-					headers: { "User-Agent": "AstroPass/1.0" },
-				}
-			);
-			clearTimeout(timeoutId);
-			if (catRes.ok) {
-				const text = await catRes.text();
-				const lines = text
-					.split("\n")
-					.map((l) => l.trim())
-					.filter(Boolean);
-				if (lines.length >= 3 && lines[1].startsWith("1 ") && lines[2].startsWith("2 ")) {
-					const noradId = parseInt(query, 10);
-					const curated = CURATED_SATELLITES.find((c) => c.noradId === noradId);
-					resultsMap.set(noradId, {
-						noradId,
-						name: lines[0],
-						displayName: curated?.displayName || lines[0],
-						category: curated?.category,
-						frequency: curated?.frequency,
-						transmissions: curated?.transmissions,
-						color: curated?.color,
-						tleLine1: lines[1],
-						tleLine2: lines[2],
-						source: "celestrak",
-					});
-				}
+			const satnogs = await fetchComprehensiveSatNOGSInfo(noradId, c.env);
+			if (satnogs && satnogs.tleLine1 && satnogs.tleLine2) {
+				resultsMap.set(noradId, {
+					noradId,
+					name: satnogs.name,
+					displayName: satnogs.displayName,
+					category: satnogs.operator || "SatNOGS Tracked Asset",
+					frequency: satnogs.frequency,
+					transmissions: satnogs.transmissions,
+					color: "#38bdf8",
+					tleLine1: satnogs.tleLine1,
+					tleLine2: satnogs.tleLine2,
+					source: "satnogs",
+				});
 			}
 		} catch {
-			// ignore
+			// ignore SatNOGS query failure
+		}
+
+		if (!resultsMap.has(noradId)) {
+			try {
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 4000);
+				const catRes = await fetch(
+					`https://celestrak.org/NORAD/elements/gp.php?CATNR=${query}&FORMAT=TLE`,
+					{
+						signal: controller.signal,
+						headers: { "User-Agent": "AstroPass/1.0" },
+					}
+				);
+				clearTimeout(timeoutId);
+				if (catRes.ok) {
+					const text = await catRes.text();
+					const lines = text
+						.split("\n")
+						.map((l) => l.trim())
+						.filter(Boolean);
+					if (lines.length >= 3 && lines[1].startsWith("1 ") && lines[2].startsWith("2 ")) {
+						const curated = CURATED_SATELLITES.find((c) => c.noradId === noradId);
+						resultsMap.set(noradId, {
+							noradId,
+							name: lines[0],
+							displayName: curated?.displayName || lines[0],
+							category: curated?.category,
+							frequency: curated?.frequency,
+							transmissions: curated?.transmissions,
+							color: curated?.color,
+							tleLine1: lines[1],
+							tleLine2: lines[2],
+							source: "celestrak",
+						});
+					}
+				}
+			} catch {
+				// ignore
+			}
 		}
 	}
 
@@ -1327,6 +1349,32 @@ app.get("/api/lookup/search", async (c) => {
 			return a.noradId - b.noradId;
 		})
 		.slice(0, 35);
+
+	// 7. Concurrently enrich top search results with SatNOGS DB transmitters, operator, and radio specs
+	const topToEnrich = results.slice(0, 12);
+	await Promise.allSettled(
+		topToEnrich.map(async (r) => {
+			try {
+				const satnogs = await fetchComprehensiveSatNOGSInfo(r.noradId, c.env);
+				if (satnogs) {
+					if (satnogs.transmissions && satnogs.transmissions.length > 0) {
+						r.transmissions = satnogs.transmissions;
+						r.frequency = satnogs.frequency || r.frequency;
+					}
+					if (satnogs.displayName && (!r.displayName || r.displayName === r.name)) {
+						r.displayName = satnogs.displayName;
+					}
+					if (satnogs.operator && (!r.category || r.category === "Tracked Asset")) {
+						r.category = satnogs.operator;
+					}
+					// Attribution: SatNOGS DB provides authoritative radio telemetry and transmitters
+					r.source = "satnogs";
+				}
+			} catch {
+				// ignore
+			}
+		})
+	);
 
 	return c.json({
 		query,
