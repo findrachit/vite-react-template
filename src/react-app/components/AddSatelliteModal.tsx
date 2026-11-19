@@ -61,6 +61,9 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 	const [tle1Input, setTle1Input] = useState("");
 	const [tle2Input, setTle2Input] = useState("");
 	const [colorInput, setColorInput] = useState("#ec4899");
+	const [fetchedCategory, setFetchedCategory] = useState<string | undefined>(undefined);
+	const [fetchedFrequency, setFetchedFrequency] = useState<string | undefined>(undefined);
+	const [fetchedTransmissions, setFetchedTransmissions] = useState<SatelliteInfo["transmissions"] | undefined>(undefined);
 	const [isLoading, setIsLoading] = useState(false);
 	const [statusMessage, setStatusMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
@@ -133,6 +136,9 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 		setTle1Input(sat.tleLine1);
 		setTle2Input(sat.tleLine2);
 		setColorInput(sat.color || known?.color || getPaletteColor(noradId));
+		setFetchedCategory(sat.category || known?.category);
+		setFetchedFrequency(sat.frequency || known?.frequency);
+		setFetchedTransmissions(sat.transmissions || known?.transmissions);
 		setStatusMessage({
 			type: "success",
 			text: `Loaded ${sat.displayName || sat.name} (NORAD #${noradId}) into manual form below.`,
@@ -165,19 +171,29 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 			const noradNum = parseInt(targetId, 10);
 			const known = KNOWN_METADATA[noradNum];
 
-			setNameInput(data.name || `Satellite ${targetId}`);
+			setNameInput(data.displayName || data.name || `Satellite ${targetId}`);
 			setNoradInput(targetId);
 			setTle1Input(data.tleLine1);
 			setTle2Input(data.tleLine2);
 			if (known?.color) {
 				setColorInput(known.color);
 			}
+			if (data.operator || data.category) {
+				setFetchedCategory(data.operator || data.category);
+			}
+			if (data.frequency) {
+				setFetchedFrequency(data.frequency);
+			}
+			if (data.transmissions) {
+				setFetchedTransmissions(data.transmissions);
+			}
+			const sourceLabel = data.source === "satnogs" ? "SatNOGS DB" : data.satnogs ? "CelesTrak & SatNOGS DB" : "CelesTrak";
 			setStatusMessage({
 				type: "success",
-				text: `Successfully fetched orbital TLE for ${data.name}!`,
+				text: `Successfully fetched orbital & telemetry specs from ${sourceLabel} for ${data.displayName || data.name}!`,
 			});
 		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Failed to fetch satellite from CelesTrak";
+			const message = err instanceof Error ? err.message : "Failed to fetch satellite";
 			setStatusMessage({
 				type: "error",
 				text: message,
@@ -207,9 +223,9 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 			displayName: nameInput.trim() || `Satellite ${noradId}`,
 			noradId,
 			color: colorInput,
-			category: known?.category || "User Tracked Asset",
-			frequency: known?.frequency,
-			transmissions: known?.transmissions,
+			category: fetchedCategory || known?.category || "User Tracked Asset",
+			frequency: fetchedFrequency || known?.frequency,
+			transmissions: fetchedTransmissions || known?.transmissions,
 			description: `Tracked satellite added via NORAD ID ${noradId}`,
 			tleLine1: tle1Input.trim(),
 			tleLine2: tle2Input.trim(),
@@ -364,7 +380,7 @@ export const AddSatelliteModal: React.FC<AddSatelliteModalProps> = ({
 													{sat.category && <span className="lookup-tag">{sat.category}</span>}
 													{sat.frequency && <span className="lookup-freq">{sat.frequency}</span>}
 													<span className="lookup-source">
-														Source: {sat.source === "catalog" ? "Fleet Catalog" : sat.source === "tle-api" ? "NORAD / CelesTrak" : "CelesTrak"}
+														Source: {sat.source === "catalog" ? "Fleet Catalog" : sat.source === "satnogs" ? "SatNOGS DB" : sat.source === "tle-api" ? "NORAD / CelesTrak" : "CelesTrak"}
 													</span>
 												</div>
 											</div>

@@ -37,7 +37,7 @@ export interface SatelliteSearchResult {
 	frequency?: string;
 	transmissions?: SatelliteTransmission[];
 	color?: string;
-	source: "catalog" | "celestrak" | "tle-api";
+	source: "catalog" | "celestrak" | "tle-api" | "satnogs";
 }
 
 export interface ObserverLocation {

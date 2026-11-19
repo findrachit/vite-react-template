@@ -1,0 +1,9 @@
+# Cloudflare Workers Secrets for Local Development (.dev.vars)
+# Conforms to Cloudflare Workers standard: https://developers.cloudflare.com/workers/configuration/secrets/
+# Copy this file to .dev.vars (which is excluded from Git in .gitignore) and fill in your values.
+
+# SatNOGS DB REST API Token (obtain from https://db.satnogs.org/ under your user profile settings)
+SATNOGS_API_TOKEN=your_satnogs_api_token_here
+
+# Fleet Authorization Token for protecting administrative/write operations in AstroPass
+FLEET_AUTH_TOKEN=your_fleet_access_token_here
